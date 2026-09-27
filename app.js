@@ -765,7 +765,7 @@ function foodRow(f) {
 }
 // ===== البحث: بالكلمات، من غير "ال"، وبيستحمل غلطة إملائية صغيرة =====
 // الأصناف اللي بتتاكل كتير بتطلع الأول
-const POPULAR = new Set(['bread', 'egg', 'chick', 'chick_grill', 'rice', 'foul', 'tuna', 'milk', 'cottage', 'banana', 'potato', 'pasta', 'yogurt', 'tomato', 'cucumber', 'white_ch', 'oats', 'falafel', 'koshari', 'beef', 'lentil']);
+const POPULAR = new Set(['bread', 'egg', 'chick', 'chick_grill', 'rice', 'foul', 'tuna', 'milk', 'cottage', 'banana', 'potato', 'pasta', 'yogurt', 'tomato', 'cucumber', 'white_ch', 'oats', 'falafel', 'koshari', 'beef_cooked', 'chick_cooked', 'molokhia_dish', 'lentil']);
 const STOP = new Set(['و', 'ب', 'من', 'في', 'على', 'مع', 'اللي']);
 const stripAl = w => w.length > 3 && w.startsWith('ال') ? w.slice(2) : w.length > 4 && /^[وب]ال/.test(w) ? w.slice(3) : w;
 const words = s => normAr(s).split(/[\s()\-\/،,.+]+/).filter(w => w && !STOP.has(w) && !/^\d+$/.test(w)).map(stripAl);

@@ -79,39 +79,128 @@ function parseJSON(t) {
 function foodCandidates(text) {
   const ws = words(text), seen = new Map();
   const add = f => { if (!seen.has(f.id)) seen.set(f.id, f); };
-  ws.forEach((w, i) => { searchFoods(w).slice(0, 6).forEach(add); if (ws[i + 1]) searchFoods(w + ' ' + ws[i + 1]).slice(0, 3).forEach(add); });
+  ws.forEach((w, i) => { searchFoods(w).slice(0, 6).forEach(add); if (w.startsWith('و') && w.length > 3) searchFoods(w.slice(1)).slice(0, 6).forEach(add); if (ws[i + 1]) searchFoods(w + ' ' + ws[i + 1]).slice(0, 3).forEach(add); });
   FOODS.filter(f => POPULAR.has(f.id)).forEach(add);
   return [...seen.values()].slice(0, 70);
 }
+// الوجبة من كلامك: "على الغدا" / "فطرت" …
+function slotFromText(t) {
+  t = normAr(t);
+  if (/فطار|فطرت|الصبح/.test(t)) return 'b';
+  if (/غدا|اتغديت/.test(t)) return 'l';
+  if (/عشا|اتعشيت|بالليل/.test(t)) return 'd';
+  if (/سناك|تصبيره/.test(t)) return 's';
+  return null;
+}
+
+// ----- من غير AI: فهم بسيط للجملة (كميات ووحدات وأصناف) -----
+const NUMW = { 'واحد': 1, 'واحده': 1, 'وحده': 1, 'اتنين': 2, 'اثنين': 2, 'تلاته': 3, 'ثلاثه': 3, 'تلات': 3, 'اربعه': 4, 'اربع': 4, 'خمسه': 5, 'خمس': 5, 'سته': 6, 'نص': 0.5, 'نصف': 0.5, 'ربع': 0.25, 'تلت': 0.33 };
+const UNITW = ['رغيف', 'بيضه', 'بيضات', 'طبق', 'اطباق', 'كوبايه', 'كوبايات', 'علبه', 'معلقه', 'معالق', 'حبه', 'حبات', 'شريحه', 'قطعه', 'حته', 'كيس', 'سكوب', 'صباع', 'كيلو', 'جرام', 'جم', 'ك'];
+const SIZEW = ['صغير', 'صغيره', 'وسط', 'متوسط', 'متوسطه', 'كبير', 'كبيره'];
+// كلمة بتبدأ بيها أصناف فعلًا (مش مجرد تشابه بعيد)
+const strongWord = w => { w = stripAl(normAr(w)); return w.length >= 2 && [...(S.myFoods || []), ...FOODS].some(f => { f._n = f._n || words(f.n); f._a = f._a || words(f.al); return f._n.some(x => x.startsWith(w)) || f._a.some(x => x.startsWith(w)); }); };
+// لو الاسم كله مش لاقيه، نجرّب نشيل كلمات زيادة من الآخر
+function bestFood(ws) {
+  for (let n = ws.length; n >= 1; n--) { const f = searchFoods(ws.slice(0, n).join(' '))[0]; if (f) return f; }
+  return null;
+}
+function localParse(text) {
+  const raw = normAr(text).replace(/(\d)([^\d\s.])/g, '$1 $2');
+  // نقسّم على الفواصل و"مع"، وعلى "و" اللي في أول الكلمة لو اللي بعدها أكل
+  const parts = [];
+  raw.split(/[،,+\n]|\sمع\s|\sو\s/).forEach(chunk => {
+    let cur = [];
+    chunk.split(/\s+/).filter(Boolean).forEach(w => {
+      const tail = w.slice(1), tb = tail.replace(/^ال/, '');
+      const unitish = UNITW.includes(tb) || NUMW[tb] != null || (tb.endsWith('ين') && UNITW.some(u => u.startsWith(tb.slice(0, -2).replace(/ت$/, 'ه'))));
+      if (w.length >= 2 && w.startsWith('و') && !strongWord(w) && (strongWord(tail) || /^\d/.test(tail) || unitish)) { if (cur.length) parts.push(cur); cur = [tail]; }
+      else cur.push(w);
+    });
+    if (cur.length) parts.push(cur);
+  });
+  const items = [], missed = [];
+  parts.forEach(ws => {
+    let qty = null, unit = null, size = null; const rest = [];
+    ws.forEach(w => {
+      const bare = w.replace(/^ال/, '');
+      if (/^\d+(\.\d+)?$/.test(w)) qty = (qty || 1) * +w;
+      else if (NUMW[bare] != null) qty = (qty || 1) * NUMW[bare];
+      else if (UNITW.includes(bare)) unit = bare;
+      else if (SIZEW.includes(bare) && rest.length) size = bare.slice(0, 3);
+      else if (bare.length > 3 && bare.endsWith('ين') && UNITW.some(u => u.startsWith(bare.slice(0, -2).replace(/ت$/, 'ه')) || u.startsWith(bare.slice(0, -2)))) { unit = bare.slice(0, -2); qty = (qty || 1) * 2; }
+      else if (/^(اكلت|كلت|فطرت|اتغديت|اتعشيت|شربت|علي|على|غدا|فطار|عشا|سناك|حوالي|تقريبا|من|في|النهارده|انهارده)$/.test(bare)) {}
+      else rest.push(w);
+    });
+    // "بيضتين" أو "رغيفين": الوحدة هي نفسها الأكل
+    if (!rest.length && unit && !['كيلو', 'جرام', 'جم', 'ك'].includes(unit)) rest.push(unit);
+    const name = rest.join(' ');
+    if (!name) return;
+    const f = bestFood(rest);
+    if (!f) { missed.push(name); return; }
+    qty = qty || 1;
+    let u = f.por.length ? 0 : -1, q = f.por.length ? qty : 100 * qty;
+    if (unit === 'كيلو' || unit === 'ك') { u = -1; q = Math.round(qty * 1000); }
+    else if (unit === 'جرام' || unit === 'جم') { u = -1; q = qty; }
+    else if (unit || size) {
+      const k = f.por.findIndex(p => { const pn = normAr(p[0]); return (!unit || pn.includes(unit.slice(0, 3))) && (!size || pn.includes(size)); });
+      const k2 = k >= 0 ? k : f.por.findIndex(p => unit && normAr(p[0]).includes(unit.slice(0, 3)));
+      if (k2 >= 0) u = k2;
+    }
+    items.push({ id: f.id, q: num(q), u });
+  });
+  return { items, missed };
+}
+
 let aiBusy = false;
 async function aiParseFood() {
   const box = $('ai-in'), txt = box.value.trim(), out = $('ai-out');
   if (!txt) return toast('اكتب أكلت إيه الأول');
   if (aiBusy) return; aiBusy = true;
-  const btn = $('ai-go'); btn.disabled = true; btn.textContent = 'بفهم…'; out.innerHTML = '';
-  const cands = foodCandidates(txt);
-  const list = cands.map(f => `${f.id}|${f.n}|${f.por.map(p => p[0]).join('،') || '-'}`).join('\n');
+  const btn = $('ai-go'); btn.disabled = true; btn.textContent = aiOn() ? 'بفهم…' : '…'; out.innerHTML = '';
+  const slot = slotFromText(txt); if (slot) FB.slot = slot;
+  const done = (items, note) => {
+    FB.items.push(...items); box.value = ''; renderBuilder();
+    $('ai-out').innerHTML = note || '';
+    toast(`اتضاف ${items.length} أصناف. راجعهم وسجّل`);
+    $('sheet-c').scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const missedNote = m => m.length ? `<p class="mute" style="font-size:13px;margin:6px 0">مش لاقي: <b>${m.map(esc).join('، ')}</b>. دوّر عليه تحت أو ضيفه لأكلاتي.</p>` : '';
   try {
+    if (!aiOn()) {
+      const r = localParse(txt);
+      if (!r.items.length) { out.innerHTML = `<p class="mute">مفهمتش أصناف من الكلام ده. اكتبها مفصولة بـ"و" أو فاصلة، مثلًا: "طبق رز بالشعرية و150 جم لحمة مطبوخة".</p>${missedNote(r.missed)}`; return; }
+      return done(r.items, missedNote(r.missed));
+    }
+    const cands = foodCandidates(txt);
+    const list = cands.map(f => `${f.id}|${f.n}|${f.por.map(p => p[0] + ' ' + p[1] + 'جم').join('،') || '-'}`).join('\n');
     const r = await callAI([
-      { role: 'system', content: 'أنت مساعد تغذية. حوّل وصف الأكل بالعامية المصرية لقائمة أصناف. استخدم الـ id من القائمة لو الصنف موجود، والكمية بالحصة المكتوبة في القائمة أو بالجرام. لو صنف مش موجود خالص حط id=null واكتب تقدير سعرات وبروتين وكارب ودهون للكمية دي. رد بـ JSON بس بالشكل: {"items":[{"id":"egg","qty":3,"unit":"بيضة","name":"بيض","est":null}]} والوحدة يا إما اسم حصة من القائمة يا إما "جم". متخترعش أصناف مش مذكورة.' },
+      { role: 'system', content: 'أنت مساعد تغذية مصري. حوّل وصف الأكل بالعامية المصرية لقائمة أصناف. استخدم الـ id من القائمة لو الصنف موجود، ولو الأكل مطبوخ اختار الصنف المطبوخ مش الني. الكمية بالحصة المكتوبة في القائمة أو بالجرام، ولو الكمية مش مذكورة خمّن حصة عادية لشخص واحد. لو صنف مش موجود خالص حط id=null واكتب اسمه ووزنه التقريبي بالجرام وتقدير سعرات وبروتين وكارب ودهون للكمية دي. رد بـ JSON بس: {"items":[{"id":"rice_egy","qty":1,"unit":"طبق","name":"رز بالشعرية","grams":null,"est":null}]} والوحدة يا إما اسم حصة من القائمة يا إما "جم". متخترعش أصناف مش مذكورة.' },
       { role: 'user', content: `القائمة (id|الاسم|الحصص):\n${list}\n\nالكلام: ${txt}` }
-    ], { maxTokens: 500 });
+    ], { maxTokens: 600 });
+    const saved = [];
     const items = (r.items || []).map(x => {
       const f = x.id && foodById(x.id), q = Math.max(0, +x.qty || 0);
       if (f) {
         const u = /^(جم|جرام|g|gram)/i.test(x.unit || '') ? -1 : Math.max(0, f.por.findIndex(p => p[0] === x.unit));
         return { id: f.id, q: q || (u < 0 ? 100 : 1), u: f.por.length ? u : -1 };
       }
-      if (x.est && +x.est.k) return { c: { n: `${x.name || 'صنف'} (تقدير)`, k: Math.round(+x.est.k), p: +x.est.p || 0, c: +x.est.c || 0, f: +x.est.f || 0 } };
+      // صنف مش موجود: بنحفظه في "أكلاتي" بتقدير الـ AI عشان المرة الجاية يبقى موجود
+      if (x.est && +x.est.k && x.name) {
+        const g = +x.grams > 0 ? +x.grams : 100, per = v => num((+v || 0) * 100 / g);
+        const nf = { id: 'my:' + uid(), n: x.name, al: '', cat: 'my', k: Math.round(+x.est.k * 100 / g), p: per(x.est.p), c: per(x.est.c), f: per(x.est.f), por: [[x.unit && !/^(جم|جرام)/.test(x.unit) ? x.unit : 'حصة', g]], src: 'تقدير AI' };
+        keepFood(nf); saved.push(nf.n);
+        return { id: nf.id, q: 1, u: 0 };
+      }
       return null;
     }).filter(Boolean);
-    if (!items.length) { out.innerHTML = '<p class="mute">مفهمتش أصناف من الكلام ده. جرّب تكتبها أوضح، مثلًا: "2 رغيف و3 بيض وطبق فول".</p>'; return; }
-    FB.items.push(...items); box.value = ''; renderBuilder();
-    toast(`اتضاف ${items.length} أصناف. راجعهم وسجّل`);
-    $('sheet-c').scrollTo({ top: 0, behavior: 'smooth' });
+    if (!items.length) { out.innerHTML = '<p class="mute">مفهمتش أصناف من الكلام ده. جرّب تكتبها أوضح، مثلًا: "طبق رز بالشعرية وقطعة لحمة مطبوخة".</p>'; return; }
+    done(items, saved.length ? `<p class="mute" style="font-size:13px;margin:6px 0">✨ ضفت لـ"أكلاتي" بتقدير AI: <b>${saved.map(esc).join('، ')}</b>. المرة الجاية هتلاقيهم في البحث.</p>` : '');
   } catch (e) {
-    out.innerHTML = `<p class="warn" style="font-size:13px;margin:6px 0">${aiErrText(e)}</p>`;
-  } finally { aiBusy = false; btn.disabled = false; btn.textContent = 'حلّل'; }
+    // لو الـ AI فشل، نجرّب الفهم البسيط عشان متقفش
+    const r = localParse(txt);
+    if (r.items.length) done(r.items, `<p class="warn" style="font-size:13px;margin:6px 0">${aiErrText(e)} فضفتهم بالفهم البسيط، راجع الكميات.</p>${missedNote(r.missed)}`);
+    else out.innerHTML = `<p class="warn" style="font-size:13px;margin:6px 0">${aiErrText(e)}</p>`;
+  } finally { aiBusy = false; btn.disabled = false; btn.textContent = 'ضيف'; }
 }
 // إدخال بالصوت (ببلاش، من المتصفح نفسه)
 function aiVoice() {
@@ -164,14 +253,28 @@ async function aiLabel(inp) {
 }
 // الجزء اللي بيتحط فوق شيت تسجيل الوجبة
 function aiFoodBlock() {
-  if (!aiOn()) return `<p class="mute" style="margin:0 0 8px;font-size:12px">💡 تقدر تسجّل أكلك بالكلام أو تصوّر جدول القيم لو ضفت مفتاح AI من الإعدادات (اختياري).</p>`;
   return `<div class="card" style="padding:12px;margin:0 0 10px">
-    <div class="row"><input id="ai-in" placeholder="✨ اكتب أكلت إيه: رغيفين و3 بيض وطبق فول" onkeydown="if(event.key==='Enter')aiParseFood()">
+    <div class="row"><input id="ai-in" placeholder="${aiOn() ? '✨' : '✍️'} اكتب أو قول أكلت إيه: طبق رز بالشعرية وقطعة لحمة" onkeydown="if(event.key==='Enter')aiParseFood()">
       <button class="fit" id="ai-mic" onclick="aiVoice()" aria-label="اتكلم">🎤</button></div>
-    <div class="row" style="margin-top:8px"><button class="p" id="ai-go" onclick="aiParseFood()">حلّل</button>
-      <button onclick="$('ai-cam').click()">📷 صوّر جدول القيم</button></div>
+    <div class="row" style="margin-top:8px"><button class="p" id="ai-go" onclick="aiParseFood()">ضيف</button>
+      ${aiOn() ? `<button onclick="$('ai-cam').click()">📷 صوّر جدول القيم</button>` : ''}</div>
+    ${aiOn() ? '' : '<p class="mute" style="margin:6px 0 0;font-size:12px">شغال من غير AI بفهم بسيط. مع مفتاح AI (من الإعدادات) بيفهم أي كلام وبيقدّر الأكل المش موجود.</p>'}
     <input type="file" id="ai-cam" accept="image/*" capture="environment" class="hide" onchange="aiLabel(this)">
     <div id="ai-out"></div></div>`;
+}
+// من صفحة الأكل على طول: تكتب وتدوس، وتفتح الوجبة جاهزة
+function quickLog() {
+  const t = $('q-in').value.trim(); if (!t) return toast('اكتب أكلت إيه');
+  openBuilder([], slotFromText(t) || defaultSlot());
+  $('ai-in').value = t; $('q-in').value = ''; aiParseFood();
+}
+function quickVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return toast('الإدخال بالصوت مش متاح في المتصفح ده');
+  const r = new SR(); r.lang = 'ar-EG'; const b = $('q-mic'); b.textContent = '🎙️…';
+  r.onresult = e => { $('q-in').value = e.results[0][0].transcript; quickLog(); };
+  r.onend = () => { b.textContent = '🎤'; }; r.onerror = () => { b.textContent = '🎤'; toast('مسمعتش كويس، جرّب تاني'); };
+  r.start();
 }
 
 // ===== 3) شرح المراجعة الأسبوعية =====

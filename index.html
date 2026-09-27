@@ -279,6 +279,11 @@ nav button.on svg{stroke-width:2.4}
       <button class="g fit" onclick="shiftDay(1)" aria-label="اليوم اللي بعده">بعده ›</button>
     </div>
     <div class="card"><div id="f-macro"></div></div>
+    <div class="card" style="padding:14px">
+      <div class="row"><input id="q-in" placeholder="✍️ أكلت إيه؟ مثلًا: طبق رز بالشعرية وقطعة لحمة" onkeydown="if(event.key==='Enter')quickLog()" aria-label="أكلت إيه">
+        <button class="fit" id="q-mic" onclick="quickVoice()" aria-label="اتكلم">🎤</button>
+        <button class="p fit" onclick="quickLog()">ضيف</button></div>
+    </div>
     <div class="card">
       <h2>اقتراح</h2>
       <div id="f-sugg"></div>
