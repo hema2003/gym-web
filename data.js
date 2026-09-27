@@ -113,6 +113,10 @@ const EX = {
     steps: ['ركّب الحبل على الكابل من تحت.', 'ارفع الحبل لصدرك والكوع ثابت.', 'نزّل ببطء.'],
     cue: 'الكابل بيدي شد ثابت طول الحركة.' },
 
+  db_curl: { n: 'Dumbbell Curl', ar: 'باي دمبل', m: 'biceps', sec: [], eq: 'db', rr: [8, 12], rest: 75, inc: 1,
+    steps: ['قف والدمبلز جنبك، وكفّك لقدام.', 'ارفع الدمبلز لكتفك والكوع ثابت.', 'نزّل ببطء.'],
+    cue: 'متتمرجحش بجسمك. لو محتاج تتمرجح يبقى الوزن تقيل.' },
+
   // ---------- رجل ----------
   squat: { n: 'Barbell Back Squat', ar: 'سكوات بالبار', m: 'quads', sec: ['hams'], eq: 'bb', rr: [6, 10], rest: 180, inc: 5,
     steps: ['البار على ضهرك فوق لوح الكتف، ورجلك بعرض كتفك.', 'انزل كأنك بتقعد على كرسي لحد ما فخدك يبقى موازي للأرض أو أوطى.', 'ادفع الأرض واطلع.'],
@@ -135,6 +139,9 @@ const EX = {
   split: { n: 'Bulgarian Split Squat', ar: 'بلغاري سبليت سكوات', m: 'quads', sec: ['hams'], eq: 'db', rr: [8, 12], rest: 90, inc: 2,
     steps: ['حط رجلك اللي ورا على البنش.', 'انزل على الرجل اللي قدام.', 'اطلع.'],
     cue: 'لو ميلت لقدام الشغل يروح على المقعدة، ولو فضلت معدول يروح على الرجل الأمامي.' },
+  deadlift: { n: 'Barbell Deadlift', ar: 'ديدلفت بالبار', m: 'hams', sec: ['back', 'quads'], eq: 'bb', rr: [5, 8], rest: 180, inc: 5,
+    steps: ['قف والبار فوق نص رجلك، وامسكه بعرض كتفك.', 'ضهرك مفرود وصدرك لفوق، وادفع الأرض برجلك.', 'اطلع لحد ما تقف مفرود، ونزّل البار لازق في رجلك.'],
+    cue: 'البار لازق في رجلك طول الحركة، وضهرك عمره ما يتقوّس.' },
   calf: { n: 'Standing Calf Raise', ar: 'سمانة واقف', m: 'calves', sec: [], eq: 'machine', rr: [10, 20], rest: 60, inc: 5,
     steps: ['قف بصوابع رجلك على حافة.', 'اطلع على صوابعك لفوق.', 'انزل لآخر المطّ.'],
     cue: 'وقفة تانيتين تحت في المطّ. (بديل: على سلمة ودمبل في إيدك)' },
@@ -145,7 +152,24 @@ const EX = {
     cue: 'الحركة من البطن، مش إنك توطّي بوسطك.' },
   leg_raise: { n: 'Hanging Leg Raise', ar: 'رفع رجل وانت متعلق', m: 'abs', sec: [], eq: 'bw', rr: [10, 15], rest: 60, inc: 0,
     steps: ['اتعلق في العقلة.', 'ارفع رجلك لفوق وارفع حوضك.', 'نزّل ببطء من غير مرجحة.'],
-    cue: 'لو صعبة، اثني ركبتك.' }
+    cue: 'لو صعبة، اثني ركبتك.' },
+  plank: { n: 'Plank', ar: 'بلانك', m: 'abs', sec: [], eq: 'bw', rr: [30, 60], rest: 60, inc: 0,
+    steps: ['اسند على كوعك وصوابع رجلك.', 'جسمك خط مستقيم من راسك لكعبك.', 'اثبت. سجّل الثواني مكان العدّات.'],
+    cue: 'اشدّ بطنك ومقعدتك، ومتخليش وسطك ينزل.' }
+};
+
+// أسامي التمارين من النسخ القديمة للتطبيق، عشان السجل القديم يفضل يظهر صح
+const ALIAS = { db_shoulder: 'db_ohp', cable_lat: 'lat_raise', cs_row: 'db_row', preacher: 'conc_curl', cable_curl: 'rope_hammer', bss: 'split' };
+const LEGACY = {
+  'Flat DB Press': 'flat_db', 'Incline DB Press': 'incline_db', 'Cable Fly': 'cable_cross', 'Barbell Row': 'bb_row',
+  'Seated DB Shoulder Press': 'db_ohp', 'Overhead Press': 'ohp', 'Lateral Raise': 'lat_raise', 'Cable Lateral Raise': 'lat_raise',
+  'Rear Delt Fly': 'rear_fly', 'Face Pull': 'face_pull', 'Lat Pulldown': 'pulldown', 'Pull Up': 'pullup', 'Seated Cable Row': 'cable_row',
+  'Chest Supported Row': 'db_row', 'DB Curl': 'db_curl', 'Barbell Curl': 'bb_curl', 'EZ Bar Curl': 'ez_curl', 'Hammer Curl': 'hammer',
+  'Incline DB Curl': 'inc_curl', 'Preacher Curl': 'conc_curl', 'Cable Curl': 'rope_hammer', 'Triceps Pushdown': 'pushdown',
+  'Overhead Triceps Extension': 'oh_ext', 'Close Grip Bench Press': 'cgbp', 'Skull Crusher': 'skull', 'Dips': 'dips',
+  'Squat': 'squat', 'Leg Press': 'leg_press', 'Leg Extension': 'leg_ext', 'Leg Curl': 'leg_curl', 'Romanian Deadlift': 'rdl',
+  'Deadlift': 'deadlift', 'Bulgarian Split Squat': 'split', 'Calf Raise': 'calf', 'Cable Crunch': 'crunch',
+  'Hanging Leg Raise': 'leg_raise', 'Plank': 'plank'
 };
 
 // ===== البرنامج =====

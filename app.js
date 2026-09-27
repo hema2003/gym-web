@@ -43,10 +43,8 @@ function migrate(s) {
   s.profile = Object.assign(d.profile, s.profile);
   if (!GOALS[s.profile.goal]) s.profile.goal = 'recomp';
   if (!s.profile.meso) s.profile.meso = weekStart(today());
-  const byName = {};
-  for (const id in EX) byName[EX[id].n] = id;
-  const alias = { db_shoulder: 'db_ohp', cable_lat: 'lat_raise', cs_row: 'db_row', preacher: 'conc_curl', cable_curl: 'rope_hammer', bss: 'split' };
-  s.workouts.forEach(w => w.ex.forEach(e => { if (!e.id) e.id = byName[e.n] || 'x:' + e.n; if (alias[e.id]) e.id = alias[e.id]; }));
+  s.workouts.forEach(w => w.ex.forEach(e => { e.id = resolveId(e.id || 'x:' + e.n); }));
+  if (s.draft) s.draft.ex.forEach(e => { e.id = resolveId(e.id); });
   s.meals.forEach(m => { if (m.k == null) Object.assign(m, { k: +m.kcal || 0, p: +m.pro || 0, c: 0, f: 0, slot: 's' }); });
   if (s.draft && !s.draft.v2) s.draft = null;
   s.daily = s.daily || {}; s.meas = s.meas || []; s.v = 2;
@@ -57,7 +55,24 @@ try { S = migrate(Object.assign(DEF(), JSON.parse(localStorage.getItem(KEY)) || 
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { toast('مفيش مساحة للحفظ!'); } };
 save();
 
-const exInfo = id => EX[id] || { n: id.slice(2), ar: id.slice(2), m: null, sec: [], rr: [8, 12], rest: 90, inc: 2.5, cue: '' };
+// أي كود تمرين (قديم أو اسم إنجليزي أو مضاف يدوي) → الكود الصحيح في المكتبة
+function resolveId(id) {
+  if (!id || EX[id]) return id;
+  if (ALIAS[id]) return ALIAS[id];
+  const name = id.replace(/^x:/, '').trim();
+  if (LEGACY[name]) return LEGACY[name];
+  for (const k in EX) if (EX[k].n.toLowerCase() === name.toLowerCase() || EX[k].ar === name) return k;
+  return id;
+}
+const prettyName = id => id.replace(/^x:/, '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim() || 'تمرين';
+function exInfo(id) {
+  const r = resolveId(id);
+  if (EX[r]) return EX[r];
+  const n = prettyName(r);
+  return { n, ar: n, m: null, sec: [], eq: null, rr: [8, 12], rest: 90, inc: 2.5, custom: true,
+    steps: ['اعمل الحركة بمدى كامل من أولها لآخرها.', 'نزّل الوزن ببطء في حوالي تانيتين.', 'وقّف قبل الفشل بعدّة أو اتنين (RIR 1-2).'],
+    cue: 'ده تمرين إنت ضفته. لو ليه بديل في المكتبة، بدّله من زرار ⋯ عشان يظهر بصورته وشرحه.' };
+}
 const daily = d => (S.daily[d] = S.daily[d] || { water: 0, steps: '', ready: {} });
 
 // ================= الحسابات =================
@@ -312,7 +327,7 @@ function renderWork() {
   $('w-ex').innerHTML = D.ex.length ? D.ex.map((e, i) => {
     const X = exInfo(e.id);
     return `<div class="ex">
-      <div class="ex-h"><div><b>${esc(X.ar)}</b><small class="ltr">${esc(X.n)}</small><small> · ${X.eq ? EQ[X.eq] + ' · ' : ''}${X.rr[0]}-${X.rr[1]} عدّة · راحة ${X.rest} ث</small></div>
+      <div class="ex-h"><div><b>${esc(X.ar)}</b>${X.n !== X.ar ? `<small class="ltr">${esc(X.n)}</small><small> · ` : '<small>'}${X.eq ? EQ[X.eq] + ' · ' : ''}${X.rr[0]}-${X.rr[1]} عدّة · راحة ${X.rest} ث</small></div>
         <button class="g" onclick="exSheet(${i})" aria-label="خيارات التمرين">⋯</button></div>
       ${howTo(e.id, i)}
       <div class="target"><span class="tag ${e.up ? 'acc' : 'blue'} ltr">🎯 ${e.tw !== '' ? e.tw + ' kg × ' : ''}${e.tr}</span><span class="mute">${e.note}</span></div>
@@ -336,10 +351,10 @@ function renderWork() {
 }
 const openHow = new Set();
 function howTo(id, i) {
-  const X = EX[id]; if (!X) return '';
+  const X = exInfo(id), img = EX[resolveId(id)] && !X.custom;
   return `<details class="how" ${openHow.has(id) ? 'open' : ''} ontoggle="this.open?openHow.add('${id}'):openHow.delete('${id}')">
     <summary>طريقة الأداء</summary>
-    <div class="how-img"><img src="img/${id}-0.jpg" alt="بداية الحركة" loading="lazy"><img src="img/${id}-1.jpg" alt="نهاية الحركة" loading="lazy"></div>
+    ${img ? `<div class="how-img"><img src="img/${resolveId(id)}-0.jpg" alt="بداية الحركة" loading="lazy" onerror="this.parentNode.remove()"><img src="img/${resolveId(id)}-1.jpg" alt="نهاية الحركة" loading="lazy" onerror="this.remove()"></div>` : ''}
     <ol>${X.steps.map(s => `<li>${s}</li>`).join('')}</ol>
     <div class="banner" style="margin:8px 0 0">💡 ${X.cue}</div>
   </details>`;
@@ -426,7 +441,7 @@ function renderPicker() {
   if (q) h += `<button class="w" style="margin-top:10px" onclick="pickEx('x:'+$('pk-q').value.trim())">+ ضيف "${esc($('pk-q').value.trim())}" كتمرين جديد</button>`;
   $('pk-l').innerHTML = h;
 }
-function pickEx(id) { S.draft.ex.push(makeEx(id, 3, S.draft.deload, S.draft.low)); save(); closeSheet(); renderWork(); }
+function pickEx(id) { S.draft.ex.push(makeEx(resolveId(id), 3, S.draft.deload, S.draft.low)); save(); closeSheet(); renderWork(); }
 
 function histSheet(id) {
   const w = S.workouts.find(x => x.id === id);
