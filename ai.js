@@ -286,26 +286,3 @@ async function askCoach(q) {
   } catch (e) { coachChat.push({ role: 'assistant', content: '⚠️ ' + aiErrText(e) }); }
   aiBusy = false; if ($('sheet').open) openCoach();
 }
-
-// ===== 5) اقترح وجبة تكمّل يومي من الأكل الرخيص =====
-async function aiSuggestMeal() {
-  if (aiBusy) return; aiBusy = true;
-  const box = $('ai-meal'), d = fDate(), tg = targets(), tot = mealTotals(d);
-  const left = Math.max(200, tg.kcal - tot.k), pLeft = Math.max(0, Math.round(tg.pro - tot.p));
-  box.innerHTML = '<p class="mute">بفكّر في وجبة…</p>';
-  const cands = [...new Set([...FOODS.filter(f => POPULAR.has(f.id)), ...PROTEIN_PICKS.map(p => foodById(p[0])), ...['veg', 'salad', 'lentil', 'liver', 'sardine', 'greek_yog', 'lupin', 'sweetpot', 'pasta', 'oats', 'milk_low', 'egg_white', 'thigh', 'tilapia'].map(foodById)].filter(Boolean))];
-  try {
-    const r = await callAI([
-      { role: 'system', content: 'أنت أخصائي تغذية مصري. اقترح وجبة واحدة رخيصة وسهلة من القائمة بس، بحيث تقرّب من السعرات والبروتين الفاضلين من غير ما تعدّيهم كتير. رد بـ JSON بس: {"title":"اسم الوجبة","items":[{"id":"...","qty":1,"unit":"اسم حصة أو جم"}],"why":"جملة واحدة ليه"}' },
-      { role: 'user', content: `فاضل: ${left} سعرة و${pLeft} جم بروتين. الوقت: ${new Date().getHours()}:00.\nالقائمة (id|الاسم|سعرات/100جم|بروتين/100جم|الحصص):\n${cands.map(f => `${f.id}|${f.n}|${f.k}|${f.p}|${f.por.map(p => p[0] + ' ' + p[1] + 'جم').join('،')}`).join('\n')}` }
-    ], { maxTokens: 350 });
-    const items = (r.items || []).map(x => { const f = foodById(x.id); if (!f) return null; const u = /^(جم|جرام|g)/i.test(x.unit || '') ? -1 : Math.max(0, f.por.findIndex(p => p[0] === x.unit)); return { id: f.id, q: +x.qty || 1, u: f.por.length ? u : -1 }; }).filter(Boolean);
-    if (!items.length) throw new AIError('parse');
-    const m = sumMacros(items); window._aiMeal = { items, slot: defaultSlot() };
-    box.innerHTML = `<div class="card" style="padding:12px;margin:10px 0 0"><b>${esc(r.title || 'اقتراح')}</b>
-      <div class="mute" style="margin:4px 0">${items.map(itemName).map(esc).join(' + ')}</div>
-      <div style="font-size:14px">${m.k} سعرة و${Math.round(m.p)} جم بروتين</div>${r.why ? `<div class="mute" style="margin-top:4px">${esc(r.why)}</div>` : ''}
-      <div class="row" style="margin-top:10px"><button class="p" onclick="openBuilder(_aiMeal.items, _aiMeal.slot)">عدّل وسجّل</button><button onclick="aiSuggestMeal()">اقتراح تاني</button></div></div>`;
-  } catch (e) { box.innerHTML = `<p class="warn" style="font-size:13px">${aiErrText(e)}</p>`; }
-  aiBusy = false;
-}

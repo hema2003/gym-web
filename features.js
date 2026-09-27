@@ -122,3 +122,82 @@ function copyYesterday() {
   add.forEach(m => S.meals.push({ ...structuredClone(m), id: uid(), date: d }));
   save(); toast(`اتنسخ أكل امبارح ✓ (${add.length})`); renderFood();
 }
+
+// ===== 6) "عندي في البيت": اقترح وجبة من الحاجات اللي عندك =====
+// من غير AI: حساب بسيط يوزّع الكميات عشان يقرّب من السعرات والبروتين الفاضلين
+// مع AI: وجبتين مختلفتين بأسامي وطريقة تحضير (والأرقام برضه من قاعدة الأكل)
+function pantryFoods(text) {
+  const out = new Map();
+  String(text || '').split(/[,،\n+]| و /).map(x => x.trim()).filter(Boolean).forEach(part => { const f = searchFoods(part)[0]; if (f) out.set(f.id, f); });
+  return [...out.values()];
+}
+function mealTarget() {
+  const d = fDate(), tg = targets(), tot = mealTotals(d);
+  const left = Math.max(250, tg.kcal - tot.k), pLeft = Math.max(0, tg.pro - tot.p);
+  return { kcal: Math.min(left, 850), pro: Math.min(pLeft, 55), left, pLeft };
+}
+function localMeal(F, kcal, pro) {
+  const unit = f => f.por.length ? { u: 0, g: f.por[0][1], step: 1, max: f.por[0][1] >= 150 ? 2 : 4 } : { u: -1, g: 50, step: 50, max: 6 };
+  const items = new Map(); let K = 0, P = 0;
+  const tryAdd = f => {
+    const U = unit(f), it = items.get(f.id) || { id: f.id, q: 0, u: U.u, n: 0 };
+    if (it.n >= U.max) return false;
+    const m = macrosOf(f, U.g);
+    if (K + m.k > kcal * 1.08) return false;
+    it.q += U.step; it.n++; items.set(f.id, it); K += m.k; P += m.p; return true;
+  };
+  const dens = f => f.k ? f.p / f.k : 0;
+  const light = F.filter(f => f.k < 45 && f.cat === 'veg');                  // خضار خفيف
+  const prot = F.filter(f => !light.includes(f) && dens(f) >= 0.06).sort((a, b) => dens(b) - dens(a));
+  const rest = F.filter(f => !light.includes(f) && !prot.includes(f) && f.k > 0).sort((a, b) => b.c - a.c);
+  light.slice(0, 2).forEach(tryAdd);
+  rest.slice(0, 1).forEach(tryAdd); // نشوية واحدة الأول عشان الوجبة تبقى متكاملة
+  for (let i = 0, fails = 0; P < pro && prot.length && fails < prot.length; i++) { if (tryAdd(prot[i % prot.length])) fails = 0; else fails++; }
+  for (let i = 0, fails = 0; K < kcal * 0.85 && rest.length && fails < rest.length; i++) { if (tryAdd(rest[i % rest.length])) fails = 0; else fails++; }
+  for (let i = 0, fails = 0; K < kcal * 0.8 && prot.length && fails < prot.length; i++) { if (tryAdd(prot[i % prot.length])) fails = 0; else fails++; }
+  return [...items.values()].map(({ id, q, u }) => ({ id, q, u }));
+}
+function mealPreview(title, items, how, i) {
+  const m = sumMacros(items);
+  (window._panMeals = window._panMeals || [])[i] = items;
+  return `<div class="card" style="padding:12px;margin:10px 0 0"><b>${esc(title)}</b>
+    <div class="mute" style="margin:4px 0">${items.map(itemName).map(esc).join(' + ')}</div>
+    <div style="font-size:14px">${m.k} سعرة و${Math.round(m.p)} جم بروتين</div>${how ? `<div class="mute" style="margin-top:4px">${esc(how)}</div>` : ''}
+    <button class="p w" style="margin-top:10px" onclick="openBuilder(_panMeals[${i}], defaultSlot())">عدّل وسجّل</button></div>`;
+}
+async function suggestFromPantry() {
+  const txt = $('pan-in').value.trim(), box = $('pan-out'), T = mealTarget();
+  S.pantry = txt; save();
+  const F = txt ? pantryFoods(txt) : [];
+  if (txt && !F.length) { box.innerHTML = '<p class="mute">مش لاقي الحاجات دي في قاعدة الأكل. اكتبها مفصولة بفاصلة، مثلًا: بيض، فول، عيش، طماطم.</p>'; return; }
+  if (!aiOn()) {
+    const pool = F.length ? F : ['egg', 'foul', 'bread', 'tuna', 'cottage', 'rice', 'salad', 'banana'].map(foodById);
+    const items = localMeal(pool, T.kcal, T.pro);
+    box.innerHTML = items.length ? mealPreview(F.length ? 'من اللي عندك' : 'وجبة رخيصة', items, `الهدف ≈ ${T.kcal} سعرة و${Math.round(T.pro)} جم بروتين للوجبة دي.`, 0)
+      + '<p class="mute" style="font-size:12px;margin:8px 0 0">💡 مع مفتاح AI بيطلعلك وجبتين بأسامي وطريقة تحضير.</p>'
+      : '<p class="mute">الحاجات دي مش كفاية لوجبة. ضيف مصدر بروتين (بيض، فول، تونة، فراخ…).</p>';
+    return;
+  }
+  if (aiBusy) return; aiBusy = true;
+  box.innerHTML = '<p class="mute">بفكّر في وجبات من اللي عندك…</p>';
+  const cands = F.length ? [...new Set([...F, ...['oil', 'salad', 'tomato', 'onion', 'bread', 'rice'].map(foodById)])] : foodCandidates('بيض فول تونة فراخ رز عيش قريش سلطة');
+  try {
+    const r = await callAI([
+      { role: 'system', content: 'أنت شيف وأخصائي تغذية مصري. اقترح وجبتين مختلفتين بس من الحاجات المتاحة (مسموح زيت وملح وبهارات)، سهلين ومصريين، وكل وجبة كمياتها تقرّب من السعرات والبروتين المطلوبين من غير ما تعدّيهم كتير. استخدم الـ id من القائمة. رد بـ JSON بس: {"meals":[{"title":"...","items":[{"id":"...","qty":1,"unit":"اسم حصة أو جم"}],"how":"طريقة التحضير في جملة"}]}' },
+      { role: 'user', content: `المطلوب للوجبة: حوالي ${T.kcal} سعرة و${Math.round(T.pro)} جم بروتين.\n${txt ? `المتاح عندي: ${txt}` : 'اقترح من الأكل الرخيص المعتاد.'}\nالقائمة (id|الاسم|سعرات/100جم|بروتين/100جم|الحصص):\n${cands.map(f => `${f.id}|${f.n}|${f.k}|${f.p}|${f.por.map(p => p[0] + ' ' + p[1] + 'جم').join('،')}`).join('\n')}` }
+    ], { maxTokens: 600 });
+    const meals = (r.meals || []).map(m => ({ ...m, items: (m.items || []).map(x => { const f = foodById(x.id); if (!f) return null; const u = /^(جم|جرام|g)/i.test(x.unit || '') ? -1 : Math.max(0, f.por.findIndex(p => p[0] === x.unit)); return { id: f.id, q: +x.qty || 1, u: f.por.length ? u : -1 }; }).filter(Boolean) })).filter(m => m.items.length);
+    if (!meals.length) throw new AIError('parse');
+    box.innerHTML = meals.slice(0, 2).map((m, i) => mealPreview(m.title || 'اقتراح', m.items, m.how, i)).join('');
+  } catch (e) {
+    // لو الـ AI فشل، نرجع للحساب المحلي عشان ميبقاش فاضي
+    const items = localMeal(F.length ? F : ['egg', 'foul', 'bread', 'tuna', 'cottage', 'rice', 'salad'].map(foodById), T.kcal, T.pro);
+    box.innerHTML = `<p class="warn" style="font-size:13px;margin:6px 0">${aiErrText(e)} فاقترحت من غيره:</p>` + (items.length ? mealPreview('من اللي عندك', items, '', 0) : '');
+  }
+  aiBusy = false;
+}
+function pantryBlock() {
+  return `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><label for="pan-in">🧺 عندك إيه في البيت؟ (اختياري)</label>
+    <div class="row"><input id="pan-in" value="${esc(S.pantry || '')}" placeholder="بيض، فول، عيش، طماطم، جبنة قريش" onkeydown="if(event.key==='Enter')suggestFromPantry()">
+    <button class="p fit" onclick="suggestFromPantry()">اقترح وجبة</button></div><div id="pan-out"></div></div>`;
+}

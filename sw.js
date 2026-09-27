@@ -1,4 +1,4 @@
-const CACHE = 'gym-v13';
+const CACHE = 'gym-v14';
 const FILES = ['./', './index.html', './app.js', './data.js', './foods.js', './analytics.js', './features.js', './coach.js', './ai.js', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

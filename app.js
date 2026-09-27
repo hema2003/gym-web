@@ -598,7 +598,14 @@ const macrosOf = (f, g) => { const m = g / 100; return { k: Math.round(f.k * m),
 const gramsOf = it => { const f = foodById(it.id); return it.u >= 0 && f.por[it.u] ? it.q * f.por[it.u][1] : it.q; };
 const unitName = (f, u) => u >= 0 && f.por[u] ? f.por[u][0] : 'جم';
 const itemMacros = it => it.c ? { k: +it.c.k || 0, p: +it.c.p || 0, c: +it.c.c || 0, f: +it.c.f || 0 } : foodById(it.id) ? macrosOf(foodById(it.id), gramsOf(it)) : { k: 0, p: 0, c: 0, f: 0 };
-const itemName = it => { if (it.c) return it.c.n; const f = foodById(it.id); return f ? `${f.n} (${num(it.q)} ${unitName(f, it.u)})` : '؟'; };
+const itemName = it => {
+  if (it.c) return it.c.n;
+  const f = foodById(it.id); if (!f) return '؟';
+  const un = unitName(f, it.u);
+  // حصص اسمها أصلًا بالجرام (زي "100 جم") نكتبها جرامات على طول
+  if (/^\d+ جم$/.test(un)) return `${f.n} (${Math.round(gramsOf(it))} جم)`;
+  return `${f.n} (${num(it.q)} ${un})`;
+};
 const sumMacros = items => items.map(itemMacros).reduce((a, m) => ({ k: a.k + m.k, p: num(a.p + m.p), c: num(a.c + m.c), f: num(a.f + m.f) }), { k: 0, p: 0, c: 0, f: 0 });
 const toItem = ([id, q, u]) => ({ id, q, u: u ?? -1 });
 const planItems = pm => pm.items.map(toItem);
@@ -612,7 +619,7 @@ function renderFood() {
   const d = fDate(), t = targets(), tot = mealTotals(d);
   $('sub').textContent = d === today() ? 'النهارده' : fmtDay(d);
   $('f-macro').innerHTML = energyBlock(t, tot);
-  $('f-sugg').innerHTML = foodSuggestion(d, t, tot) + (aiOn() && t.kcal - tot.k > 200 ? `<button class="w" style="margin-top:12px" onclick="aiSuggestMeal()">✨ اقترح وجبة تكمّل يومي</button><div id="ai-meal"></div>` : '');
+  $('f-sugg').innerHTML = foodSuggestion(d, t, tot) + pantryBlock();
 
   const seen = new Set(), recent = [];
   for (let i = S.meals.length - 1; i >= 0 && recent.length < 10; i--) { const m = S.meals[i]; if (!seen.has(m.name)) { seen.add(m.name); recent.push(i); } }
