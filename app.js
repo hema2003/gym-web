@@ -745,7 +745,7 @@ function renderBuilder() {
     const m = itemMacros(it);
     if (it.c || !foodById(it.id)) return `<div class="fb-it"><div style="flex:1"><b>${esc(itemName(it))}</b><div class="mute">${m.k} سعرة · بروتين ${m.p}</div></div><button class="g del" onclick="fbRm(${i})" aria-label="شيل">✕</button></div>`;
     const f = foodById(it.id), step = it.u >= 0 ? 1 : 25;
-    return `<div class="fb-it"><div style="flex:1;min-width:0"><b>${esc(f.n)}</b><div class="mute" id="fb-m${i}">${m.k} سعرة، بروتين ${m.p}، ${Math.round(gramsOf(it))} جم</div></div>
+    return `<div class="fb-it"><div style="flex:1;min-width:0"><b>${esc(f.n.replace(/\s*\((ني|ناشف|مطبوخة?|مسلوقة|مشوية)\)/, ''))}</b>${stateTag(f)}${foodState(f) === 'raw' && f.cat === 'grain' ? '<div class="mute" style="font-size:11px">الوزن قبل الطبخ. الزيت أو السمنة ضيفهم لوحدهم.</div>' : ''}<div class="mute" id="fb-m${i}">${m.k} سعرة، بروتين ${m.p}، ${Math.round(gramsOf(it))} جم</div></div>
       <div class="stepper"><button onclick="fbQ(${i},-${step})" aria-label="أقل">−</button><input type="number" inputmode="decimal" value="${num(it.q)}" oninput="fbSet(${i},this.value)"><button onclick="fbQ(${i},${step})" aria-label="أكتر">+</button></div>
       <select class="unit" onchange="fbU(${i},+this.value)" aria-label="الوحدة">${f.por.map((p, j) => `<option value="${j}" ${it.u === j ? 'selected' : ''}>${esc(p[0])}</option>`).join('')}<option value="-1" ${it.u < 0 ? 'selected' : ''}>جم</option></select>
       <button class="g del" onclick="fbRm(${i})" aria-label="شيل">✕</button></div>`;
@@ -759,9 +759,12 @@ function renderFbTot() {
   $('fb-tot').innerHTML = `<div class="grid4" style="text-align:center">${c(s.k, 'سعرة', 'acc')}${c(s.p, 'بروتين', 'blue')}${c(s.c, 'كارب', 'amber')}${c(s.f, 'دهون', 'pink')}</div>`;
   $('fb-save').textContent = FB.items.length ? `${FB.edit ? 'احفظ التعديل' : 'سجّل الوجبة'} · ${s.k} سعرة` : 'ضيف أكل الأول';
 }
+// علامة واضحة: ني (قبل الطبخ) ولا مطبوخ (بعد الطبخ)
+function foodState(f) { const m = f.n.match(/\((ني|ناشف|مطبوخة?|مسلوقة|مشوية)\)/); return m ? (/ني|ناشف/.test(m[1]) ? 'raw' : 'cooked') : null; }
+function stateTag(f) { const st = foodState(f); return st === 'raw' ? ' <span class="tag warn">ني، قبل الطبخ</span>' : st === 'cooked' ? ' <span class="tag acc">مطبوخ</span>' : ''; }
 function foodRow(f) {
   const hint = f.por[0] ? `، ${esc(f.por[0][0])} = ${Math.round(f.k * f.por[0][1] / 100)} سعرة` : '';
-  return `<div class="food-it" onclick="fbAdd('${f.id}')"><div><div>${esc(f.n)}${f.src ? ` <span class="tag">${f.src}</span>` : ''}</div><div class="mute" style="font-size:12px">${f.k} سعرة و${f.p} جم بروتين لكل 100 جم${hint}</div></div><b class="acc" style="font-size:20px">+</b></div>`;
+  return `<div class="food-it" onclick="fbAdd('${f.id}')"><div><div>${esc(f.n.replace(/\s*\((ني|ناشف)\)/, '').replace(/\s*\((مطبوخة?|مسلوقة|مشوية)\)/, ''))}${stateTag(f)}${f.src ? ` <span class="tag">${f.src}</span>` : ''}</div><div class="mute" style="font-size:12px">${f.k} سعرة و${f.p} جم بروتين لكل 100 جم${hint}</div></div><b class="acc" style="font-size:20px">+</b></div>`;
 }
 // ===== البحث: بالكلمات، من غير "ال"، وبيستحمل غلطة إملائية صغيرة =====
 // الأصناف اللي بتتاكل كتير بتطلع الأول
