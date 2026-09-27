@@ -181,12 +181,12 @@ svg.chart{width:100%;height:auto;display:block}
 .heat i.on{background:var(--green)}
 .heat i.fut{background:transparent}
 
-dialog{border:0;padding:0;background:transparent;max-width:600px;width:100%;margin:auto auto 0;max-height:92vh}
+dialog{border:0;padding:0;background:transparent;max-width:600px;width:100%;margin:auto auto 0;max-height:92vh;max-height:92dvh}
 dialog::backdrop{background:rgba(16,21,31,.45)}
 dialog[open] .sheet{animation:sheetUp .28s cubic-bezier(.2,.8,.2,1)}
 @keyframes sheetUp{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
 .sheet{background:var(--surface);border-radius:24px 24px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));
-  color:var(--ink);max-height:92vh;overflow:auto}
+  color:var(--ink);max-height:92vh;max-height:92dvh;overflow:auto}
 .sheet h3{font-family:var(--display);margin:0 0 4px;font-size:20px;font-weight:800}
 .sheet .card{background:var(--surface-2)}
 .grip{width:40px;height:4px;border-radius:9px;background:var(--line);margin:-6px auto 12px}
@@ -320,10 +320,10 @@ nav button.on svg{stroke-width:2.4}
     <div class="card">
       <h2>المقاسات <small>بالسنتيمتر</small></h2>
       <div class="grid4">
-        <div><label for="m-waist">الوسط</label><input type="number" step="0.5" id="m-waist"></div>
-        <div><label for="m-arm">الدراع</label><input type="number" step="0.5" id="m-arm"></div>
-        <div><label for="m-chest">الصدر</label><input type="number" step="0.5" id="m-chest"></div>
-        <div><label for="m-sh">الكتف</label><input type="number" step="0.5" id="m-sh"></div>
+        <div><label for="m-waist">الوسط</label><input type="number" inputmode="decimal" step="0.5" id="m-waist"></div>
+        <div><label for="m-arm">الدراع</label><input type="number" inputmode="decimal" step="0.5" id="m-arm"></div>
+        <div><label for="m-chest">الصدر</label><input type="number" inputmode="decimal" step="0.5" id="m-chest"></div>
+        <div><label for="m-sh">الكتف</label><input type="number" inputmode="decimal" step="0.5" id="m-sh"></div>
       </div>
       <button class="w" style="margin-top:10px" onclick="saveMeas()">سجّل المقاسات</button>
       <ul class="list" id="p-meas" style="margin-top:6px"></ul>
@@ -338,9 +338,9 @@ nav button.on svg{stroke-width:2.4}
     <div class="card">
       <h2>بياناتك</h2>
       <div class="grid3">
-        <div><label for="s-h">الطول (سم)</label><input type="number" id="s-h"></div>
-        <div><label for="s-w">الوزن (كجم)</label><input type="number" step="0.1" id="s-w"></div>
-        <div><label for="s-bf">نسبة الدهون %</label><input type="number" id="s-bf"></div>
+        <div><label for="s-h">الطول (سم)</label><input type="number" inputmode="decimal" id="s-h"></div>
+        <div><label for="s-w">الوزن (كجم)</label><input type="number" inputmode="decimal" step="0.1" id="s-w"></div>
+        <div><label for="s-bf">نسبة الدهون %</label><input type="number" inputmode="decimal" id="s-bf"></div>
       </div>
       <div class="grid2" style="margin-top:12px">
         <div><label for="s-act">حركتك برّه الجيم</label>
@@ -359,7 +359,7 @@ nav button.on svg{stroke-width:2.4}
       </div>
       <div class="grid2" style="margin-top:12px">
         <div><label for="s-meso">بداية الدورة التدريبية</label><input type="date" id="s-meso"></div>
-        <div><label for="s-adj">تعديل السعرات يدويًا</label><input type="number" step="50" id="s-adj"></div>
+        <div><label for="s-adj">تعديل السعرات يدويًا</label><input type="number" inputmode="decimal" step="50" id="s-adj"></div>
       </div>
       <button class="p w" style="margin-top:14px" onclick="saveProfile()">احفظ</button>
     </div>

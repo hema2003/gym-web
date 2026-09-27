@@ -240,7 +240,16 @@ const draftActive = () => S.draft && S.draft.ex.some(e => e.sets.some(s => s.ok)
 // ================= التنقل =================
 const TITLES = { home: 'اليوم', work: 'التمرين', food: 'الأكل', prog: 'التقدم', set: 'الإعدادات' };
 let view = 'home';
-function go(v) {
+// زرار الرجوع في الموبايل: بيقفل الشيت أو يرجع للصفحة اللي قبلها بدل ما يقفل التطبيق
+let ignorePop = false, pendingView = null;
+addEventListener('popstate', e => {
+  if (ignorePop) { ignorePop = false; if (pendingView) { history.pushState({ v: pendingView }, ''); pendingView = null; } return; }
+  const d = $('sheet');
+  if (d.open) { stopScan(); d.close(); return; }
+  go((e.state && e.state.v) || 'home', true);
+});
+function go(v, fromPop) {
+  if (!fromPop) { if (ignorePop) pendingView = v; else if (!history.state || history.state.v !== v || history.state.sheet) history.pushState({ v }, ''); }
   view = v;
   for (const k in TITLES) $('v-' + k).classList.toggle('hide', k !== v);
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
@@ -572,7 +581,7 @@ function beep() {
 // كل القيم لكل 100 جم. عنصر الوجبة: {id, q, u} و u = -1 يعني جرامات، وأي رقم تاني يعني رقم الحصة (بيضة، رغيف، كوباية…)
 // أو {c:{n,k,p,c,f}} لإدخال يدوي قديم
 const foodById = id => FOODS.find(f => f.id === id) || (S.myFoods || []).find(f => f.id === id);
-const normAr = s => String(s || '').toLowerCase().replace(/[ً-ٟـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي').trim();
+const normAr = s => String(s || '').toLowerCase().replace(/[ً-ٟـ​-‏]/g, '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي').trim();
 const macrosOf = (f, g) => { const m = g / 100; return { k: Math.round(f.k * m), p: num(f.p * m), c: num(f.c * m), f: num(f.f * m) }; };
 const gramsOf = it => { const f = foodById(it.id); return it.u >= 0 && f.por[it.u] ? it.q * f.por[it.u][1] : it.q; };
 const unitName = (f, u) => u >= 0 && f.por[u] ? f.por[u][0] : 'جم';
@@ -706,19 +715,57 @@ function foodRow(f) {
   const hint = f.por[0] ? `، ${esc(f.por[0][0])} = ${Math.round(f.k * f.por[0][1] / 100)} سعرة` : '';
   return `<div class="food-it" onclick="fbAdd('${f.id}')"><div><div>${esc(f.n)}${f.src ? ` <span class="tag">${f.src}</span>` : ''}</div><div class="mute" style="font-size:12px">${f.k} سعرة و${f.p} جم بروتين لكل 100 جم${hint}</div></div><b class="acc" style="font-size:20px">+</b></div>`;
 }
+// ===== البحث: بالكلمات، من غير "ال"، وبيستحمل غلطة إملائية صغيرة =====
+// الأصناف اللي بتتاكل كتير بتطلع الأول
+const POPULAR = new Set(['bread', 'egg', 'chick', 'chick_grill', 'rice', 'foul', 'tuna', 'milk', 'cottage', 'banana', 'potato', 'pasta', 'yogurt', 'tomato', 'cucumber', 'white_ch', 'oats', 'falafel', 'koshari', 'beef', 'lentil']);
+const STOP = new Set(['و', 'ب', 'من', 'في', 'على', 'مع', 'اللي']);
+const stripAl = w => w.length > 3 && w.startsWith('ال') ? w.slice(2) : w.length > 4 && /^[وب]ال/.test(w) ? w.slice(3) : w;
+const words = s => normAr(s).split(/[\s()\-\/،,.+]+/).filter(w => w && !STOP.has(w) && !/^\d+$/.test(w)).map(stripAl);
+function lev(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 9;
+  let prev = [...Array(b.length + 1).keys()];
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+function wordScore(w, q, alias) {
+  if (w === q) return alias ? 3 : 4;
+  if (w.startsWith(q)) return alias ? 2.5 : 3;
+  if (q.length >= 3 && w.includes(q)) return alias ? 1.5 : 2;
+  if (q.length >= 3 && lev(w.slice(0, q.length + 1), q) <= (q.length >= 5 ? 2 : 1)) return alias ? 0.7 : 1;
+  return 0;
+}
+function foodScore(f, qw, full) {
+  f._n = f._n || words(f.n); f._a = f._a || words(f.al);
+  let score = 0;
+  for (const q of qw) {
+    let best = 0;
+    for (const w of f._n) best = Math.max(best, wordScore(w, q, false));
+    for (const w of f._a) best = Math.max(best, wordScore(w, q, true));
+    if (!best) return 0; // لازم كل كلمة في البحث تلاقي حاجة
+    score += best;
+  }
+  return score + (normAr(f.n).startsWith(full) ? 2 : 0) + (POPULAR.has(f.id) ? 1.5 : 0) - f._n.length * 0.05;
+}
+function searchFoods(raw) {
+  const qw = words(raw), full = normAr(raw);
+  if (!qw.length) return [];
+  return [...(S.myFoods || []), ...FOODS].map(f => [foodScore(f, qw, full), f]).filter(x => x[0] > 0).sort((a, b) => b[0] - a[0]).map(x => x[1]);
+}
 function renderFbList() {
   const raw = ($('fb-q').value || '').trim(), q = normAr(raw), my = S.myFoods || [];
   let h = '';
   if (/^\d{8,14}$/.test(raw)) { $('fb-list').innerHTML = `<button class="w" onclick="lookupBarcode('${raw}')">🔎 دوّر على الباركود ${raw}</button>`; return; }
   if (q) {
-    const scored = [...my, ...FOODS].map(f => {
-      const n = normAr(f.n), a = normAr(f.al);
-      const s = n.startsWith(q) ? 3 : n.includes(q) ? 2 : a.split(' ').some(w => w.startsWith(q)) ? 1.5 : a.includes(q) ? 1 : 0;
-      return [s, f];
-    }).filter(x => x[0]).sort((a, b) => b[0] - a[0]).slice(0, 40);
-    h = scored.map(x => foodRow(x[1])).join('');
-    h += `<button class="w" style="margin-top:10px" onclick="searchOnline()">🌐 ${scored.length ? 'مش لاقي اللي عايزه؟ ' : ''}دوّر أونلاين على "${esc(raw)}"</button><div id="fb-online"></div>`;
-    if (!scored.length) h = '<p class="mute">مش لاقيه في القائمة. دوّر أونلاين (للمنتجات المعبّأة) أو ضيفه لـ"أكلاتي" تحت.</p>' + h;
+    const res = searchFoods(raw);
+    // مفيش نتيجة بكل الكلمات؟ نجرّب بأول كلمة بس عشان نقترح حاجة قريبة
+    const loose = !res.length && words(raw).length > 1 ? searchFoods(words(raw)[0]).slice(0, 8) : [];
+    h = res.slice(0, 40).map(foodRow).join('');
+    if (!res.length) h = `<p style="margin:8px 0">مفيش صنف اسمه "${esc(raw)}" بالظبط.</p>` + (loose.length ? `<div class="mute" style="margin:4px 0">أقرب حاجات:</div>${loose.map(foodRow).join('')}` : '');
+    h += `<div class="row" style="margin-top:10px;gap:8px"><button onclick="searchOnline()">🌐 دوّر أونلاين</button><button onclick="$('fb-new').open=true;$('fm-n').value=$('fb-q').value;$('fm-k').focus()">+ ضيفه بنفسك</button></div><div id="fb-online"></div>`;
   } else if (FB.cat === 'my') {
     h = my.map(foodRow).join('') || '<p class="mute">لسه مضفتش أكلات خاصة بيك. ضيف من تحت، أو دوّر أونلاين وهتتحفظ هنا.</p>';
   } else if (FB.cat) {
@@ -764,7 +811,8 @@ const OFF_FIELDS = 'code,product_name,product_name_ar,brands,nutriments,serving_
 function offToFood(p) {
   const n = p.nutriments || {}, k = n['energy-kcal_100g'] ?? (n['energy_100g'] ? n['energy_100g'] / 4.184 : null);
   if (k == null) return null;
-  const name = [p.product_name_ar || p.product_name, p.brands && p.brands.split(',')[0]].filter(Boolean).join(' - ');
+  const brand = Array.isArray(p.brands) ? p.brands[0] : p.brands && String(p.brands).split(',')[0];
+  const name = [p.product_name_ar || p.product_name, brand].filter(Boolean).join(' - ');
   if (!name) return null;
   const sq = parseFloat(p.serving_quantity);
   return { id: 'off:' + p.code, n: name, al: '', cat: 'my', k: Math.round(k), p: num(n.proteins_100g || 0), c: num(n.carbohydrates_100g || 0), f: num(n.fat_100g || 0), por: sq > 0 ? [['حصة', sq]] : [], src: 'أونلاين' };
@@ -776,13 +824,16 @@ async function searchOnline() {
   if (!q) return;
   if (!navigator.onLine) { box.innerHTML = '<p class="mute">محتاج نت عشان البحث أونلاين.</p>'; return; }
   box.innerHTML = '<p class="mute">بدوّر…</p>';
+  const get = async url => { const c = new AbortController(), t = setTimeout(() => c.abort(), 9000); try { const r = await fetch(url, { signal: c.signal }); if (!r.ok) throw 0; return await r.json(); } finally { clearTimeout(t); } };
   try {
-    const r = await fetch(`${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${OFF_FIELDS}`);
-    offResults = ((await r.json()).products || []).map(offToFood).filter(Boolean);
+    let list = [];
+    try { list = (await get(`https://search.openfoodfacts.org/search?q=${encodeURIComponent(q)}&page_size=20&fields=${OFF_FIELDS}`)).hits || []; } catch {}
+    if (!list.length) list = (await get(`${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${OFF_FIELDS}`)).products || [];
+    offResults = list.map(offToFood).filter(Boolean);
     box.innerHTML = offResults.length ? '<div class="mute" style="margin:10px 0 2px">نتايج أونلاين (القيم لكل 100 جم من على العبوة)</div>' +
       offResults.map((f, i) => `<div class="food-it" onclick="pickOnline(${i})"><div><div>${esc(f.n)}</div><div class="mute" style="font-size:12px">${f.k} سعرة و${f.p} جم بروتين لكل 100 جم</div></div><b class="acc" style="font-size:20px">+</b></div>`).join('')
-      : '<p class="mute">ملقتش نتايج. جرّب اسم تاني أو بالإنجليزي، أو ضيفه بنفسك.</p>';
-  } catch { box.innerHTML = '<p class="mute">البحث مش شغال دلوقتي. جرّب تاني بعد شوية.</p>'; }
+      : '<p class="mute">ملقتش نتايج أونلاين. المنتجات المصرية غالبًا متسجلة باسمها الإنجليزي، فجرّب اسم الماركة بالإنجليزي (زي Juhayna أو Domty)، أو امسح الباركود.</p>';
+  } catch { box.innerHTML = '<p class="mute">البحث أونلاين مردّش. اتأكد إن النت شغال وجرّب تاني بعد دقيقة، لأن الموقع بيحدد عدد مرات البحث. أو امسح الباركود، أو ضيف الصنف بنفسك.</p>'; }
 }
 function pickOnline(i) { const f = offResults[i]; keepFood(f); fbAdd(f.id); }
 async function lookupBarcode(code) {
@@ -932,9 +983,15 @@ function resetAll() {
 }
 
 // ================= شيت =================
-function openSheet(h) { $('sheet-c').innerHTML = h; const d = $('sheet'); if (!d.open) d.showModal(); }
-function closeSheet() { if (typeof stopScan === 'function') stopScan(); $('sheet').close(); }
+function openSheet(h) { $('sheet-c').innerHTML = h; const d = $('sheet'); if (!d.open) { d.showModal(); history.pushState({ v: view, sheet: 1 }, ''); } }
+function closeSheet() {
+  stopScan();
+  const d = $('sheet'); if (!d.open) return;
+  d.close();
+  if (history.state && history.state.sheet) { ignorePop = true; history.back(); }
+}
 
 $('sheet').addEventListener('close', () => stopScan());
-go('home');
+history.replaceState({ v: 'home' }, '');
+go('home', true);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
