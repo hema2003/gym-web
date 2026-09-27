@@ -165,7 +165,7 @@ async function aiParseFood() {
   const btn = $('ai-go'); btn.disabled = true; btn.textContent = aiOn() ? 'بفهم…' : '…'; out.innerHTML = '';
   const slot = slotFromText(txt); if (slot) FB.slot = slot;
   const done = (items, note) => {
-    FB.items.push(...items); box.value = ''; renderBuilder();
+    items.forEach(x => x.ai = 1); FB.items.push(...items); box.value = ''; renderBuilder();
     $('ai-out').innerHTML = note || '';
     toast(`اتضاف ${items.length} أصناف في ${SLOTS[FB.slot]}. راجعهم وسجّل`);
     $('sheet-c').scrollTo({ top: 0, behavior: 'smooth' });

@@ -715,7 +715,7 @@ function rmMeal(id) { S.meals = S.meals.filter(m => m.id !== id); save(); render
 // ===== شيت تسجيل وجبة =====
 const FB = { items: [], slot: 'b', edit: null, cat: '' };
 function openBuilder(items = [], slot = defaultSlot(), edit = null) {
-  Object.assign(FB, { items: items.map(x => ({ ...x })), slot, edit, cat: '' });
+  Object.assign(FB, { items: items.map(x => ({ ...x })), slot, edit, cat: '', replace: null });
   openSheet(`<div class="grip"></div><h3>${edit ? 'تعديل الوجبة' : 'سجّل وجبة'}</h3>
     <div class="chips" id="fb-slot" style="margin:10px 0"></div>
     ${aiFoodBlock()}
@@ -743,12 +743,13 @@ function renderBuilder() {
   $('fb-slot').innerHTML = Object.entries(SLOTS).map(([k, l]) => `<button class="chip ${FB.slot === k ? 'on' : ''}" onclick="FB.slot='${k}';renderBuilder()">${l}</button>`).join('');
   $('fb-items').innerHTML = FB.items.map((it, i) => {
     const m = itemMacros(it);
-    if (it.c || !foodById(it.id)) return `<div class="fb-it"><div style="flex:1"><b>${esc(itemName(it))}</b><div class="mute">${m.k} سعرة · بروتين ${m.p}</div></div><button class="g del" onclick="fbRm(${i})" aria-label="شيل">✕</button></div>`;
+    const aiTag = it.ai ? ' <span class="tag blue" style="font-size:11px">اتفهم من كلامك، راجعه</span>' : '';
+    if (it.c || !foodById(it.id)) return `<div class="fb-it"><div style="flex:1"><b>${esc(itemName(it))}</b>${aiTag}<div class="mute">${m.k} سعرة، بروتين ${m.p}</div></div><button class="g sm" onclick="fbReplace(${i})">بدّل</button><button class="g del" onclick="fbRm(${i})" aria-label="شيل">✕</button></div>`;
     const f = foodById(it.id), step = it.u >= 0 ? 1 : 25;
-    return `<div class="fb-it"><div style="flex:1;min-width:0"><b>${esc(f.n.replace(/\s*\((ني|ناشف|مطبوخة?|مسلوقة|مشوية)\)/, ''))}</b>${stateTag(f)}${foodState(f) === 'raw' && f.cat === 'grain' ? '<div class="mute" style="font-size:11px">الوزن قبل الطبخ. الزيت أو السمنة ضيفهم لوحدهم.</div>' : ''}<div class="mute" id="fb-m${i}">${m.k} سعرة، بروتين ${m.p}، ${Math.round(gramsOf(it))} جم</div></div>
+    return `<div class="fb-it"><div style="flex:1;min-width:0"><b>${esc(variantGroup(it.id) ? variantGroup(it.id).n : f.n.replace(/\s*\((ني|ناشف|مطبوخة?|مسلوقة|مشوية)\)/, ''))}</b>${variantGroup(it.id) ? '' : stateTag(f)}${aiTag}${variantChips(i, it.id)}${foodState(f) === 'raw' && f.cat === 'grain' ? '<div class="mute" style="font-size:11px">الوزن قبل الطبخ. الزيت أو السمنة ضيفهم لوحدهم.</div>' : ''}<div class="mute" id="fb-m${i}">${m.k} سعرة، بروتين ${m.p}، ${Math.round(gramsOf(it))} جم</div></div>
       <div class="stepper"><button onclick="fbQ(${i},-${step})" aria-label="أقل">−</button><input type="number" inputmode="decimal" value="${num(it.q)}" oninput="fbSet(${i},this.value)"><button onclick="fbQ(${i},${step})" aria-label="أكتر">+</button></div>
       <select class="unit" onchange="fbU(${i},+this.value)" aria-label="الوحدة">${f.por.map((p, j) => `<option value="${j}" ${it.u === j ? 'selected' : ''}>${esc(p[0])}</option>`).join('')}<option value="-1" ${it.u < 0 ? 'selected' : ''}>جم</option></select>
-      <button class="g del" onclick="fbRm(${i})" aria-label="شيل">✕</button></div>`;
+      <div style="display:flex;flex-direction:column;gap:2px"><button class="g sm" style="padding:2px 6px;min-height:28px" onclick="fbReplace(${i})" aria-label="بدّل الصنف">بدّل</button><button class="g del" style="min-height:28px" onclick="fbRm(${i})" aria-label="شيل">✕</button></div></div>`;
   }).join('') || '<p class="mute" style="margin:6px 0">ابحث تحت وضيف كل حاجة أكلتها، وظبّط الكمية بالحصة أو بالجرام.</p>';
   $('fb-cats').innerHTML = [['', 'الكل'], ['my', 'أكلاتي'], ...Object.entries(FOOD_CATS)].map(([k, l]) => `<button class="chip ${FB.cat === k ? 'on' : ''}" onclick="FB.cat='${k}';renderBuilder()">${l}</button>`).join('');
   renderFbTot(); renderFbList();
@@ -814,22 +815,31 @@ function renderFbList() {
     const res = searchFoods(raw);
     // مفيش نتيجة بكل الكلمات؟ نجرّب بأول كلمة بس عشان نقترح حاجة قريبة
     const loose = !res.length && words(raw).length > 1 ? searchFoods(words(raw)[0]).slice(0, 8) : [];
-    h = res.slice(0, 40).map(foodRow).join('');
-    if (!res.length) h = `<p style="margin:8px 0">مفيش صنف اسمه "${esc(raw)}" بالظبط.</p>` + (loose.length ? `<div class="mute" style="margin:4px 0">أقرب حاجات:</div>${loose.map(foodRow).join('')}` : '');
+    h = groupedRows(res.slice(0, 40));
+    if (!res.length) h = `<p style="margin:8px 0">مفيش صنف اسمه "${esc(raw)}" بالظبط.</p>` + (loose.length ? `<div class="mute" style="margin:4px 0">أقرب حاجات:</div>${groupedRows(loose)}` : '');
     h += `<div class="row" style="margin-top:10px;gap:8px"><button onclick="searchOnline()">🌐 دوّر أونلاين</button><button onclick="$('fb-new').open=true;$('fm-n').value=$('fb-q').value;$('fm-k').focus()">+ ضيفه بنفسك</button></div><div id="fb-online"></div>`;
   } else if (FB.cat === 'my') {
     h = my.map(foodRow).join('') || '<p class="mute">لسه مضفتش أكلات خاصة بيك. ضيف من تحت، أو دوّر أونلاين وهتتحفظ هنا.</p>';
   } else if (FB.cat) {
-    h = FOODS.filter(f => f.cat === FB.cat).map(foodRow).join('');
+    h = groupedRows(FOODS.filter(f => f.cat === FB.cat));
   } else {
     const used = [], seen = new Set();
     for (let i = S.meals.length - 1; i >= 0 && used.length < 10; i--) (S.meals[i].items || []).forEach(it => { if (it.id && !seen.has(it.id) && foodById(it.id)) { seen.add(it.id); used.push(foodById(it.id)); } });
-    h = (used.length ? `<div class="mute" style="margin:6px 0 2px">استخدمتهم قريب</div>${used.map(foodRow).join('')}<div class="mute" style="margin:12px 0 2px">كل الأكل (${FOODS.length + my.length} صنف)</div>` : '')
-      + [...my, ...FOODS].filter(f => !seen.has(f.id)).slice(0, 60).map(foodRow).join('');
+    h = (used.length ? `<div class="mute" style="margin:6px 0 2px">استخدمتهم قريب</div>${groupedRows(used)}<div class="mute" style="margin:12px 0 2px">كل الأكل (${FOODS.length + my.length} صنف)</div>` : '')
+      + groupedRows([...my, ...FOODS].filter(f => !seen.has(f.id)).slice(0, 70));
+  }
+  if (FB.replace != null && FB.items[FB.replace]) {
+    const it = FB.items[FB.replace];
+    h = `<div class="banner warn" style="margin:8px 0">بتبدّل: <b>${esc(itemName(it))}</b>. اختار الصنف الصح، والكمية هتفضل زي ما هي. <button class="sm" style="margin-top:6px;display:block" onclick="cancelReplace()">إلغاء</button></div>` + h;
   }
   $('fb-list').innerHTML = h;
 }
 function fbAdd(id) {
+  if (FB.replace != null && FB.items[FB.replace]) {
+    const i = FB.replace; FB.items[i] = convertItem(FB.items[i], id); delete FB.items[i].ai;
+    FB.replace = null; $('fb-q').value = ''; $('fb-q').placeholder = 'ابحث: طماطم، فراخ، كشري… أو رقم الباركود';
+    toast('اتبدّل ✓'); vib(8); renderBuilder(); $('sheet-c').scrollTo({ top: 0, behavior: 'smooth' }); return;
+  }
   const f = foodById(id), ex = FB.items.find(x => x.id === id);
   if (ex) ex.q = num(ex.q + (ex.u >= 0 ? 1 : 50));
   else FB.items.push(f.por.length ? { id, q: 1, u: 0 } : { id, q: 100, u: -1 });
@@ -838,7 +848,7 @@ function fbAdd(id) {
 function fbQ(i, d) { const it = FB.items[i]; it.q = Math.max(0, num(it.q + d)); renderBuilder(); }
 function fbSet(i, v) { const it = FB.items[i]; it.q = +v || 0; const m = itemMacros(it); $('fb-m' + i).textContent = `${m.k} سعرة، بروتين ${m.p}، ${Math.round(gramsOf(it))} جم`; renderFbTot(); }
 function fbU(i, u) { const it = FB.items[i], g = gramsOf(it), f = foodById(it.id); it.u = u; it.q = u < 0 ? Math.round(g) : num(Math.max(0.5, g / f.por[u][1])); renderBuilder(); }
-function fbRm(i) { FB.items.splice(i, 1); renderBuilder(); }
+function fbRm(i) { FB.items.splice(i, 1); if (FB.replace != null) FB.replace = null; renderBuilder(); }
 function addMyFood() {
   const n = $('fm-n').value.trim(), k = +$('fm-k').value;
   if (!n || !$('fm-k').value) return toast('اكتب الاسم والسعرات');

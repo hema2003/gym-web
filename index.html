@@ -168,7 +168,10 @@ details summary{cursor:pointer}
 .slot-h b{font-family:var(--display);font-weight:600;font-size:15px}
 .food-it{display:flex;justify-content:space-between;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line);cursor:pointer;gap:10px}
 .food-it:active{background:var(--surface-2)}
-.fb-it{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.fb-it{display:flex;align-items:center;gap:8px;padding:12px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.fb-it>div:first-child{flex:1 1 100%!important}
+.fb-it .stepper{margin-inline-start:auto}
+.vchips{flex-wrap:wrap}
 .stepper{display:flex;align-items:center;gap:4px;flex:0 0 auto}
 .stepper button{padding:0;width:36px;min-height:38px;height:38px}
 .stepper input{width:58px;padding:7px 2px;min-height:38px}
@@ -443,6 +446,7 @@ nav button.on svg{stroke-width:2.4}
 
 <script src="data.js"></script>
 <script src="foods.js"></script>
+<script src="variants.js"></script>
 <script src="analytics.js"></script>
 <script src="features.js"></script>
 <script src="training.js"></script>
