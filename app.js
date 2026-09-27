@@ -2,8 +2,8 @@
 const KEY = 'gym-data-v1';
 const DEF = () => ({
   v: 2,
-  profile: { h: 173, w: 83, bf: 20, act: 1.6, goal: 'cut', adj: 0, adjDate: null, meso: null },
-  workouts: [], meals: [], weights: [], meas: [], daily: {}, myFoods: [], draft: null
+  profile: { h: 173, w: 83, bf: 20, act: 1.6, goal: 'cut', adj: 0, adjDate: null, meso: null, stepsGoal: 10000 },
+  workouts: [], meals: [], weights: [], meas: [], daily: {}, myFoods: [], checkins: [], program: null, ai: {}, draft: null
 });
 const GOALS = {
   cut:    { d: -0.2, r: -0.0075, ar: 'تنشيف' },
@@ -52,7 +52,7 @@ function migrate(s) {
   // الهدف الأساسي خسارة دهون، فأي ملف قديم على "ريكومب" بيتحول لـ "تنشيف" مرة واحدة
   s.flags = s.flags || {};
   if (!s.flags.cut1) { if (s.profile.goal === 'recomp') s.profile.goal = 'cut'; s.flags.cut1 = 1; }
-  s.daily = s.daily || {}; s.meas = s.meas || []; s.myFoods = s.myFoods || []; s.v = 2;
+  s.daily = s.daily || {}; s.meas = s.meas || []; s.myFoods = s.myFoods || []; s.checkins = s.checkins || []; s.ai = s.ai || {}; s.v = 2;
   return s;
 }
 let S;
@@ -324,7 +324,9 @@ function renderHome() {
   $('h-water').innerHTML = Array.from({ length: 12 }, (_, i) => `<i class="${i < dd.water ? 'on' : ''}"></i>`).join('');
   $('h-water-t').textContent = `المية: ${(dd.water * 0.25).toFixed(2).replace(/\.?0+$/, '') || 0} من 3 لتر`;
   const st = +dd.steps || 0;
-  $('h-stepsbar').innerHTML = `<div class="row"><span class="mute">الخطوات: <b class="num" style="font-weight:600">${st.toLocaleString('en')}</b> من 10,000</span></div><div class="bar" style="--c:var(--green)"><i style="width:${pct(st, 10000)}"></i></div>`;
+  const sg = S.profile.stepsGoal || 10000;
+  $('h-stepsbar').innerHTML = `<div class="row"><span class="mute">الخطوات: <b class="num" style="font-weight:600">${st.toLocaleString('en')}</b> من ${sg.toLocaleString('en')}</span></div><div class="bar" style="--c:var(--green)"><i style="width:${pct(st, sg)}"></i></div>`;
+  $('h-checkin').innerHTML = checkinCard();
 
   const rate = weeklyRate(), tw = trendSeries().at(-1);
   $('h-wtrend').textContent = tw ? `${num(tw.t)} كجم${rate != null ? ` (${sgn(rate)}/أسبوع)` : ''}` : '';
@@ -677,6 +679,7 @@ function openBuilder(items = [], slot = defaultSlot(), edit = null) {
   Object.assign(FB, { items: items.map(x => ({ ...x })), slot, edit, cat: '' });
   openSheet(`<div class="grip"></div><h3>${edit ? 'تعديل الوجبة' : 'سجّل وجبة'}</h3>
     <div class="chips" id="fb-slot" style="margin:10px 0"></div>
+    ${aiFoodBlock()}
     <div id="fb-items"></div>
     <div class="card" style="margin:10px 0;background:var(--card2);padding:12px" id="fb-tot"></div>
     <button class="p w" style="padding:14px" id="fb-save" onclick="saveBuilder()"></button>
@@ -703,7 +706,7 @@ function renderBuilder() {
     const m = itemMacros(it);
     if (it.c || !foodById(it.id)) return `<div class="fb-it"><div style="flex:1"><b>${esc(itemName(it))}</b><div class="mute">${m.k} سعرة · بروتين ${m.p}</div></div><button class="g del" onclick="fbRm(${i})" aria-label="شيل">✕</button></div>`;
     const f = foodById(it.id), step = it.u >= 0 ? 1 : 25;
-    return `<div class="fb-it"><div style="flex:1;min-width:0"><b>${esc(f.n)}</b><div class="mute" id="fb-m${i}">${m.k} سعرة · بروتين ${m.p} · ${Math.round(gramsOf(it))} جم</div></div>
+    return `<div class="fb-it"><div style="flex:1;min-width:0"><b>${esc(f.n)}</b><div class="mute" id="fb-m${i}">${m.k} سعرة، بروتين ${m.p}، ${Math.round(gramsOf(it))} جم</div></div>
       <div class="stepper"><button onclick="fbQ(${i},-${step})" aria-label="أقل">−</button><input type="number" inputmode="decimal" value="${num(it.q)}" oninput="fbSet(${i},this.value)"><button onclick="fbQ(${i},${step})" aria-label="أكتر">+</button></div>
       <select class="unit" onchange="fbU(${i},+this.value)" aria-label="الوحدة">${f.por.map((p, j) => `<option value="${j}" ${it.u === j ? 'selected' : ''}>${esc(p[0])}</option>`).join('')}<option value="-1" ${it.u < 0 ? 'selected' : ''}>جم</option></select>
       <button class="g del" onclick="fbRm(${i})" aria-label="شيل">✕</button></div>`;
@@ -791,7 +794,7 @@ function fbAdd(id) {
   $('fb-q').value = ''; vib(8); renderBuilder(); $('sheet-c').scrollTo({ top: 0, behavior: 'smooth' });
 }
 function fbQ(i, d) { const it = FB.items[i]; it.q = Math.max(0, num(it.q + d)); renderBuilder(); }
-function fbSet(i, v) { const it = FB.items[i]; it.q = +v || 0; const m = itemMacros(it); $('fb-m' + i).textContent = `${m.k} سعرة · بروتين ${m.p} · ${Math.round(gramsOf(it))} جم`; renderFbTot(); }
+function fbSet(i, v) { const it = FB.items[i]; it.q = +v || 0; const m = itemMacros(it); $('fb-m' + i).textContent = `${m.k} سعرة، بروتين ${m.p}، ${Math.round(gramsOf(it))} جم`; renderFbTot(); }
 function fbU(i, u) { const it = FB.items[i], g = gramsOf(it), f = foodById(it.id); it.u = u; it.q = u < 0 ? Math.round(g) : num(Math.max(0.5, g / f.por[u][1])); renderBuilder(); }
 function fbRm(i) { FB.items.splice(i, 1); renderBuilder(); }
 function addMyFood() {
@@ -902,6 +905,7 @@ function saveMeas() {
 // ================= الإعدادات =================
 function renderSet() {
   $('sub').textContent = '';
+  renderAISettings();
   const p = S.profile, t = targets();
   $('s-h').value = p.h; $('s-w').value = num(t.w); $('s-bf').value = p.bf; $('s-act').value = p.act; $('s-goal').value = p.goal;
   $('s-meso').value = p.meso; $('s-adj').value = p.adj || 0;
@@ -923,13 +927,14 @@ function saveProfile() {
 }
 function exportData() {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(S)], { type: 'application/json' }));
+  // المفتاح مبيتصدّرش عشان الملف ممكن يتبعت لحد
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({ ...S, ai: { ...S.ai, key: '' } })], { type: 'application/json' }));
   a.download = `gym-backup-${today()}.json`; a.click();
 }
 function importData(inp) {
   const f = inp.files[0]; if (!f) return;
   f.text().then(t => {
-    try { const d = JSON.parse(t); if (!Array.isArray(d.workouts)) throw 0; S = migrate(Object.assign(DEF(), d)); save(); toast('اتستورد ✓'); go('home'); }
+    try { const d = JSON.parse(t); if (!Array.isArray(d.workouts)) throw 0; const key = S.ai && S.ai.key; S = migrate(Object.assign(DEF(), d)); if (key) S.ai.key = key; initProgram(); save(); toast('اتستورد ✓'); go('home'); }
     catch { toast('الملف ده مش صالح'); }
   });
   inp.value = '';
@@ -949,6 +954,8 @@ function closeSheet() {
 }
 
 $('sheet').addEventListener('close', () => stopScan());
+initProgram();
+autoCheckin();
 history.replaceState({ v: 'home' }, '');
 go('home', true);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

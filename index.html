@@ -241,6 +241,7 @@ nav button.on svg{stroke-width:2.4}
       </div>
     </div>
 
+    <div id="h-checkin"></div>
     <div class="card">
       <h2>ملاحظات المدرب</h2>
       <ul class="coach" id="h-coach"></ul>
@@ -368,6 +369,16 @@ nav button.on svg{stroke-width:2.4}
       <button class="p w" style="margin-top:14px" onclick="saveProfile()">احفظ</button>
     </div>
     <div class="card">
+      <h2>الذكاء الاصطناعي <small>اختياري</small></h2>
+      <p class="mute" style="margin:-4px 0 12px">بيضيف: تسجيل الأكل بالكلام أو الصوت، وقراية جدول القيم الغذائية من صورة، وشرح شخصي للمراجعة الأسبوعية. كل حاجة تانية شغالة من غيره. المفتاح بيتحفظ على تلفونك بس، ومش بيتحط في النسخة الاحتياطية. هات مفتاح من openrouter.ai/keys.</p>
+      <div id="ai-set"></div>
+    </div>
+    <div class="card">
+      <h2>البرنامج</h2>
+      <p class="mute" style="margin:-4px 0 12px">المراجعة الأسبوعية ممكن تبدّل تمرين واقف أو تزوّد وتقلّل مجموعات. تقدر ترجّع البرنامج لأصله في أي وقت.</p>
+      <button class="w" onclick="resetProgram()">رجّع البرنامج للأصل</button>
+    </div>
+    <div class="card">
       <h2>أهدافك اليومية</h2>
       <div class="grid4" id="s-calc"></div>
       <p class="mute" id="s-note" style="margin:12px 0 0"></p>
@@ -383,6 +394,7 @@ nav button.on svg{stroke-width:2.4}
         <li><i>⚖️</i><span><b>سعرات بتتظبط لوحدها:</b> التطبيق بيحسب حرقك الفعلي من أكلك واتجاه وزنك، وبيقترح تعديل لو النزول أسرع أو أبطأ من هدفك.</span></li>
         <li><i>🔁</i><span><b>ترتيب مرن:</b> البرنامج مش مربوط بأيام الأسبوع. لو فوّت يوم، بيكمّل من التمرين اللي عليك.</span></li>
         <li><i>🏃</i><span><b>الكارديو:</b> مشي بميل في آخر التمرين، ومعاه 10 آلاف خطوة في اليوم. السعرات المحروقة مش بتتضاف لهدف الأكل، لأنها محسوبة أصلًا في حركتك.</span></li>
+        <li><i>🗓️</i><span><b>مراجعة أسبوعية:</b> كل سبت التطبيق بيراجع أسبوعك. لو محتاج، بيعدّل السعرات أو هدف الخطوات، أو يبدّل تمرين واقف، أو يزوّد أو يقلّل مجموعات، أو يقدّم الأسبوع الخفيف. وبيشرح كل تعديل ليه اتعمل، وتقدر تتراجع عنه.</span></li>
         <li><i>😴</i><span><b>الجاهزية:</b> لو نومك وطاقتك مش كويسين، التمرين بيخفّ لوحده.</span></li>
       </ul>
     </div>
@@ -420,6 +432,8 @@ nav button.on svg{stroke-width:2.4}
 <script src="data.js"></script>
 <script src="foods.js"></script>
 <script src="analytics.js"></script>
+<script src="coach.js"></script>
+<script src="ai.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

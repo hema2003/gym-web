@@ -48,7 +48,7 @@ function weekStats(ws, cap = 7) {
     cKcal: card.reduce((a, e) => a + e.sets.reduce((b, x) => b + cardioKcal(e.id, x.w, x.r), 0), 0),
     logged: logged.length, avgK: avg(tots.map(x => x.k)), avgP: avg(tots.map(x => x.p)),
     pHit: tots.filter(x => x.p >= tg.pro * 0.9).length, kHit: tots.filter(x => Math.abs(x.k - tg.kcal) <= tg.kcal * 0.1).length,
-    stepsAvg: avg(steps), stepsHit: steps.filter(x => x >= 8000).length, weighs,
+    stepsAvg: avg(steps), stepsHit: steps.filter(x => x >= (S.profile.stepsGoal || 10000) * 0.8).length, weighs,
     wChange: wEnd != null && wStart != null ? wEnd - wStart : null
   };
   // درجة الأسبوع من 100 (محسوبة على الأيام اللي عدّت بس)
@@ -148,7 +148,9 @@ function renderWeek() {
       ${stat(s.cMin, 'دقيقة كارديو', s.cKcal ? ` (${s.cKcal} سعرة)` : '')}
       ${stat(s.stepsAvg == null ? '—' : Math.round(s.stepsAvg).toLocaleString('en'), 'متوسط الخطوات')}
     </div>${s.days < 7 ? `<p class="mute" style="margin:10px 0 0">المقارنة بأول ${s.days} أيام من الأسبوع اللي فات.</p>` : ''}</div>
-    <div class="card"><h2>ملاحظات الأسبوع</h2><ul class="coach">${weekInsights(s, p).map(([i, t]) => `<li><i>${i}</i><span>${t}</span></li>`).join('')}</ul></div>`;
+    <div class="card"><h2>ملاحظات الأسبوع</h2><ul class="coach">${weekInsights(s, p).map(([i, t]) => `<li><i>${i}</i><span>${t}</span></li>`).join('')}</ul></div>
+    <div class="card"><h2>المراجعات الأسبوعية <small>بتتعمل لوحدها كل سبت</small></h2><ul class="list">${checkinsList()}</ul>
+      ${repOffset < 0 && !S.checkins.some(c => c.week === ws) ? `<button class="w" style="margin-top:8px" onclick="const c=runCheckin('${ws}',true);c?openCheckin(c.week):toast('مفيش بيانات كفاية للأسبوع ده')">اعمل مراجعة للأسبوع ده</button>` : ''}</div>`;
 }
 function weekInsights(s, p) {
   const out = [], tg = targets(), rate = weeklyRate(), want = GOALS[S.profile.goal].r * curWeight();
