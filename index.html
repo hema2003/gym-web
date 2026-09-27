@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e0f11">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>جيم</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e0f11; --card:#17191c; --line:#24272c; --text:#f2f3f5; --mute:#8a9099;
+  --acc:#c6f432; --acc-ink:#0e0f11; --warn:#ff6b5b; --blue:#5bb8ff;
+  --r:16px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{font-family:Cairo,system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;font-size:15px;line-height:1.5;
+  padding:env(safe-area-inset-top) 0 calc(76px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 16px 6px;max-width:560px;margin:auto}
+header h1{font-size:22px;margin:0;font-weight:800}
+header small{color:var(--mute);display:block;font-size:13px;font-weight:400}
+main{max-width:560px;margin:auto;padding:0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:12px 0}
+.card h2{font-size:15px;margin:0 0 10px;font-weight:600;color:var(--mute)}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1;min-width:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat b{display:block;direction:ltr;text-align:right;font-size:24px;font-weight:800;line-height:1.2}
+.stat span{color:var(--mute);font-size:12px}
+.acc{color:var(--acc)}
+.mute{color:var(--mute);font-size:13px}
+input,select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;
+  padding:11px 12px;font:inherit;outline:none}
+input:focus,select:focus{border-color:var(--acc)}
+input[type=number]{direction:ltr;text-align:center}
+label{font-size:12px;color:var(--mute);display:block;margin-bottom:4px}
+button{font:inherit;border:0;border-radius:12px;padding:11px 14px;cursor:pointer;background:var(--line);color:var(--text);font-weight:600}
+button.p{background:var(--acc);color:var(--acc-ink)}
+button.g{background:none;color:var(--mute);padding:6px 8px}
+button.w{width:100%}
+button:active{transform:scale(.98)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600;color:var(--text)}
+.chip.on{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--acc);border-radius:99px;transition:width .3s}
+.bar.b i{background:var(--blue)}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);gap:8px}
+.list li:last-child{border:0}
+.ex{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.ex:first-of-type{border:0;margin:0;padding:0}
+.ex-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.ex-h b{font-size:15px}
+.set{display:grid;grid-template-columns:28px 1fr 1fr 36px;gap:8px;align-items:center;margin:6px 0}
+.set .n{color:var(--mute);text-align:center;font-size:13px}
+.set.done input{border-color:var(--acc)}
+.tick{background:var(--bg);border:1px solid var(--line);padding:0;height:40px;border-radius:10px;color:var(--mute)}
+.set.done .tick{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+nav{position:fixed;bottom:0;inset-inline:0;background:rgba(14,15,17,.92);backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:5}
+nav button{background:none;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;padding:4px 10px}
+nav button svg{width:22px;height:22px}
+nav button.on{color:var(--acc)}
+.hide{display:none!important}
+svg.chart{width:100%;height:180px;display:block}
+.toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--acc);color:var(--acc-ink);
+  padding:10px 18px;border-radius:99px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;z-index:9}
+.toast.on{opacity:1}
+.tip{font-size:13px;color:var(--mute);margin:0;padding-inline-start:18px}
+.tip li{margin:4px 0}
+.del{color:var(--warn)}
+</style>
+</head>
+<body>
+<header>
+  <div><h1 id="title">اليوم</h1><small id="sub"></small></div>
+  <button class="g" onclick="go('set')" aria-label="الإعدادات">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+  </button>
+</header>
+
+<main>
+  <!-- اليوم -->
+  <section id="v-home">
+    <div class="card">
+      <h2>أكل النهارده</h2>
+      <div class="grid2">
+        <div class="stat"><b id="h-kcal">0</b><span id="h-kcal-t">سعرة</span><div class="bar"><i id="h-kcal-b"></i></div></div>
+        <div class="stat"><b id="h-pro">0</b><span id="h-pro-t">جم بروتين</span><div class="bar b"><i id="h-pro-b"></i></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>تمرين النهارده</h2>
+      <div id="h-work"></div>
+    </div>
+    <div class="card">
+      <h2>وزن الصبح</h2>
+      <div class="row">
+        <input type="number" step="0.1" inputmode="decimal" id="h-w" placeholder="كجم">
+        <button class="p" style="flex:0 0 auto" onclick="addWeight()">سجّل</button>
+      </div>
+      <p class="mute" id="h-wlast" style="margin:8px 0 0"></p>
+    </div>
+    <div class="card">
+      <h2>نصايح لهدفك</h2>
+      <ul class="tip" id="h-tips"></ul>
+    </div>
+  </section>
+
+  <!-- تمرين -->
+  <section id="v-work" class="hide">
+    <div class="card">
+      <h2>اختار اليوم من البرنامج</h2>
+      <div class="chips" id="w-tpl"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:12px">
+        <input id="w-name" placeholder="اسم التمرين (مثلاً: Upper A)">
+        <input type="date" id="w-date" style="flex:0 0 150px">
+      </div>
+      <div id="w-ex"></div>
+      <div class="row" style="margin-top:14px">
+        <input id="w-new" placeholder="أضف تمرين..." list="ex-list">
+        <button style="flex:0 0 auto" onclick="addEx()">+ أضف</button>
+      </div>
+      <datalist id="ex-list"></datalist>
+      <button class="p w" style="margin-top:14px" onclick="saveWorkout()">حفظ التمرين ✓</button>
+    </div>
+    <div class="card">
+      <h2>السجل</h2>
+      <ul class="list" id="w-hist"></ul>
+    </div>
+  </section>
+
+  <!-- أكل -->
+  <section id="v-food" class="hide">
+    <div class="card">
+      <div class="row" style="margin-bottom:10px">
+        <button class="g" style="flex:0 0 auto" onclick="shiftDay(-1)">→</button>
+        <input type="date" id="f-date" onchange="renderFood()">
+        <button class="g" style="flex:0 0 auto" onclick="shiftDay(1)">←</button>
+      </div>
+      <div class="grid2">
+        <div class="stat"><b id="f-kcal">0</b><span id="f-kcal-t"></span><div class="bar"><i id="f-kcal-b"></i></div></div>
+        <div class="stat"><b id="f-pro">0</b><span id="f-pro-t"></span><div class="bar b"><i id="f-pro-b"></i></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>أضف وجبة</h2>
+      <input id="m-name" placeholder="الوجبة (مثلاً: 200جم فراخ + رز)" list="meal-list" oninput="fillMeal()" style="margin-bottom:8px">
+      <datalist id="meal-list"></datalist>
+      <div class="row">
+        <div><label>سعرات</label><input type="number" inputmode="numeric" id="m-kcal"></div>
+        <div><label>بروتين (جم)</label><input type="number" inputmode="numeric" id="m-pro"></div>
+      </div>
+      <button class="p w" style="margin-top:12px" onclick="addMeal()">أضف</button>
+      <div class="chips" id="m-quick" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <h2>وجبات اليوم</h2>
+      <ul class="list" id="m-list"></ul>
+    </div>
+  </section>
+
+  <!-- تقدم -->
+  <section id="v-prog" class="hide">
+    <div class="grid3" style="margin-top:12px">
+      <div class="card stat" style="margin:0"><b id="p-w">—</b><span>الوزن الحالي</span></div>
+      <div class="card stat" style="margin:0"><b id="p-d">—</b><span>التغيير</span></div>
+      <div class="card stat" style="margin:0"><b id="p-n">0</b><span>تمرين (30 يوم)</span></div>
+    </div>
+    <div class="card">
+      <h2>الوزن</h2>
+      <div id="p-wchart"></div>
+    </div>
+    <div class="card">
+      <h2>قوة التمرين (أعلى 1RM تقديري)</h2>
+      <select id="p-ex" onchange="renderExChart()" style="margin-bottom:10px"></select>
+      <div id="p-exchart"></div>
+    </div>
+    <div class="card">
+      <h2>أرقامك القياسية</h2>
+      <ul class="list" id="p-prs"></ul>
+    </div>
+  </section>
+
+  <!-- إعدادات -->
+  <section id="v-set" class="hide">
+    <div class="card">
+      <h2>بياناتك</h2>
+      <div class="grid3">
+        <div><label>الطول (سم)</label><input type="number" id="s-h"></div>
+        <div><label>الوزن (كجم)</label><input type="number" step="0.1" id="s-w"></div>
+        <div><label>الدهون %</label><input type="number" id="s-bf"></div>
+      </div>
+      <div class="grid2" style="margin-top:10px">
+        <div><label>النشاط</label>
+          <select id="s-act">
+            <option value="1.375">خفيف (3 أيام)</option>
+            <option value="1.55">متوسط (4-5 أيام)</option>
+            <option value="1.725">عالي (6 أيام)</option>
+          </select></div>
+        <div><label>الهدف</label>
+          <select id="s-goal">
+            <option value="-500">تنشيف (نزول دهون)</option>
+            <option value="-250">ريكومب (دهون ↓ عضل ↑)</option>
+            <option value="0">ثبات</option>
+            <option value="300">تضخيم</option>
+          </select></div>
+      </div>
+      <button class="p w" style="margin-top:12px" onclick="saveProfile()">حفظ</button>
+    </div>
+    <div class="card">
+      <h2>أهدافك المحسوبة</h2>
+      <div class="grid3" id="s-calc"></div>
+      <p class="mute" id="s-note" style="margin:10px 0 0"></p>
+    </div>
+    <div class="card">
+      <h2>نسخة احتياطية</h2>
+      <p class="mute" style="margin-top:0">البيانات محفوظة على تلفونك بس. خد نسخة كل فترة.</p>
+      <div class="row">
+        <button onclick="exportData()">تصدير ⬇</button>
+        <button onclick="document.getElementById('imp').click()">استيراد ⬆</button>
+      </div>
+      <input type="file" id="imp" accept=".json" class="hide" onchange="importData(this)">
+      <button class="g w del" style="margin-top:10px" onclick="resetAll()">مسح كل البيانات</button>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-v="home" class="on" onclick="go('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8v10H3z"/></svg>اليوم</button>
+  <button data-v="work" onclick="go('work')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 7v10M3 9v6M18 7v10M21 9v6M6 12h12"/></svg>تمرين</button>
+  <button data-v="food" onclick="go('food')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 2c-2 0-3 3-3 6s1 4 3 4v10"/></svg>أكل</button>
+  <button data-v="prog" onclick="go('prog')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M5 16l5-5 4 3 6-7"/></svg>تقدم</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------- البيانات ----------
+const KEY = 'gym-data-v1';
+const DEF = () => ({
+  profile: { h: 173, w: 83, bf: 20, act: 1.55, goal: -250 },
+  workouts: [], meals: [], weights: [], draft: null
+});
+let S;
+try { S = Object.assign(DEF(), JSON.parse(localStorage.getItem(KEY)) || {}); } catch { S = DEF(); }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+
+// برنامج Upper/Lower أربع أيام — مناسب لمستوى متوسط وهدف نزول دهون مع الحفاظ على العضل
+const PROGRAM = {
+  'Upper A': ['Flat DB Press', 'Barbell Row', 'Seated DB Shoulder Press', 'Lat Pulldown', 'DB Curl', 'Triceps Pushdown'],
+  'Lower A': ['Squat', 'Romanian Deadlift', 'Leg Press', 'Leg Curl', 'Calf Raise', 'Plank'],
+  'Upper B': ['Incline DB Press', 'Pull Up', 'Seated Cable Row', 'Lateral Raise', 'Hammer Curl', 'Overhead Triceps Extension'],
+  'Lower B': ['Deadlift', 'Bulgarian Split Squat', 'Leg Extension', 'Leg Curl', 'Calf Raise', 'Cable Crunch']
+};
+const PLAN_DAYS = { 6: 'Upper A', 0: 'Lower A', 2: 'Upper B', 3: 'Lower B' }; // سبت، حد، تلات، أربع
+
+// ---------- أدوات ----------
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, '0');
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const today = () => iso(new Date());
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtDay = s => new Date(s + 'T00:00').toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' });
+const e1rm = (w, r) => r > 0 ? w * (1 + r / 30) : 0; // Epley
+const toast = m => { const t = $('toast'); t.textContent = m; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 1500); };
+const pct = (a, b) => Math.min(100, b ? a / b * 100 : 0) + '%';
+
+function targets() {
+  const p = S.profile, lbm = p.w * (1 - p.bf / 100);
+  const bmr = 370 + 21.6 * lbm;           // Katch-McArdle
+  const tdee = bmr * p.act;
+  return { lbm, bmr, tdee, kcal: Math.round((tdee + +p.goal) / 50) * 50, pro: Math.round(lbm * 2.2 / 5) * 5 };
+}
+
+// ---------- التنقل ----------
+const TITLES = { home: 'اليوم', work: 'التمرين', food: 'الأكل', prog: 'التقدم', set: 'الإعدادات' };
+function go(v) {
+  for (const k in TITLES) $('v-' + k).classList.toggle('hide', k !== v);
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  $('title').textContent = TITLES[v];
+  ({ home: renderHome, work: renderWork, food: renderFood, prog: renderProg, set: renderSet })[v]();
+  scrollTo(0, 0);
+}
+
+// ---------- اليوم ----------
+function dayTotals(d) {
+  return S.meals.filter(m => m.date === d).reduce((a, m) => ({ k: a.k + (+m.kcal || 0), p: a.p + (+m.pro || 0) }), { k: 0, p: 0 });
+}
+function renderHome() {
+  const t = targets(), d = today(), tot = dayTotals(d);
+  $('sub').textContent = fmtDay(d);
+  $('h-kcal').textContent = tot.k; $('h-kcal-t').textContent = `من ${t.kcal} سعرة`; $('h-kcal-b').style.width = pct(tot.k, t.kcal);
+  $('h-pro').textContent = tot.p; $('h-pro-t').textContent = `من ${t.pro} جم بروتين`; $('h-pro-b').style.width = pct(tot.p, t.pro);
+
+  const done = S.workouts.find(w => w.date === d);
+  const planned = PLAN_DAYS[new Date().getDay()];
+  $('h-work').innerHTML = done
+    ? `<p style="margin:0">✅ خلصت <b>${esc(done.name)}</b> — ${done.ex.length} تمارين</p>`
+    : planned
+      ? `<p style="margin:0 0 10px">النهارده: <b class="acc">${planned}</b></p><button class="p w" onclick="startTpl('${planned}')">ابدأ التمرين</button>`
+      : `<p class="mute" style="margin:0 0 10px">يوم راحة 😴 — امشي 8-10 آلاف خطوة</p><button class="w" onclick="go('work')">تمرين على أي حال</button>`;
+
+  const last = S.weights.at(-1);
+  $('h-wlast').textContent = last ? `آخر وزن: ${last.w} كجم (${fmtDay(last.date)})` : 'سجّل وزنك كل يوم الصبح على الريق';
+
+  $('h-tips').innerHTML = [
+    `كُل ${t.pro} جم بروتين يومياً عشان تحافظ على العضل وانت بتنشف.`,
+    `هدف السعرات ${t.kcal} — نزول 0.5-0.75 كجم في الأسبوع ممتاز.`,
+    'زوّد الوزن أو العدات كل أسبوع لو قدرت (Progressive Overload).',
+    '3-4 مجموعات لكل تمرين، 6-12 عدة، ووقّف قبل الفشل بعدة أو اتنين.',
+    'نام 7-8 ساعات واشرب 3 لتر مية.'
+  ].map(x => `<li>${x}</li>`).join('');
+}
+function addWeight() {
+  const w = parseFloat($('h-w').value);
+  if (!w) return;
+  const d = today();
+  S.weights = S.weights.filter(x => x.date !== d);
+  S.weights.push({ date: d, w });
+  S.weights.sort((a, b) => a.date.localeCompare(b.date));
+  S.profile.w = w;
+  save(); $('h-w').value = ''; toast('تم تسجيل الوزن'); renderHome();
+}
+
+// ---------- التمرين ----------
+function allExNames() {
+  const s = new Set(Object.values(PROGRAM).flat());
+  S.workouts.forEach(w => w.ex.forEach(e => s.add(e.n)));
+  return [...s].sort();
+}
+function lastFor(name) {
+  for (let i = S.workouts.length - 1; i >= 0; i--) {
+    const e = S.workouts[i].ex.find(x => x.n === name);
+    if (e) return e.sets;
+  }
+  return null;
+}
+function newDraft(name = '', exs = []) {
+  S.draft = {
+    name, date: today(),
+    ex: exs.map(n => {
+      const prev = lastFor(n);
+      const sets = prev ? prev.map(s => ({ w: s.w, r: s.r, ok: false })) : [{ w: '', r: '', ok: false }, { w: '', r: '', ok: false }, { w: '', r: '', ok: false }];
+      return { n, sets };
+    })
+  };
+  save();
+}
+function startTpl(k) { newDraft(k, PROGRAM[k]); go('work'); }
+
+function renderWork() {
+  $('sub').textContent = 'برنامج Upper / Lower — 4 أيام';
+  if (!S.draft) newDraft();
+  const D = S.draft;
+  $('w-tpl').innerHTML = Object.keys(PROGRAM).map(k => `<button class="chip ${D.name === k ? 'on' : ''}" onclick="pickTpl('${k}')">${k}</button>`).join('')
+    + `<button class="chip" onclick="pickTpl('')">فاضي</button>`;
+  $('w-name').value = D.name; $('w-date').value = D.date;
+  $('ex-list').innerHTML = allExNames().map(n => `<option value="${esc(n)}">`).join('');
+  $('w-ex').innerHTML = D.ex.length ? D.ex.map((e, i) => {
+    const prev = lastFor(e.n);
+    return `<div class="ex">
+      <div class="ex-h"><b>${esc(e.n)}</b><button class="g del" onclick="rmEx(${i})">✕</button></div>
+      ${prev ? `<div class="mute">آخر مرة: ${prev.map(s => `${s.w}×${s.r}`).join(' · ')}</div>` : ''}
+      <div class="set mute" style="margin-top:4px"><span></span><span style="text-align:center">كجم</span><span style="text-align:center">عدات</span><span></span></div>
+      ${e.sets.map((s, j) => `<div class="set ${s.ok ? 'done' : ''}">
+        <span class="n">${j + 1}</span>
+        <input type="number" step="0.5" inputmode="decimal" value="${s.w}" onchange="setVal(${i},${j},'w',this.value)">
+        <input type="number" inputmode="numeric" value="${s.r}" onchange="setVal(${i},${j},'r',this.value)">
+        <button class="tick" onclick="tick(${i},${j})">✓</button>
+      </div>`).join('')}
+      <div class="row"><button class="g" onclick="addSet(${i})">+ مجموعة</button><button class="g" onclick="rmSet(${i})">− مجموعة</button></div>
+    </div>`;
+  }).join('') : '<p class="mute" style="margin:0">اختار يوم من البرنامج فوق أو أضف تمارين بنفسك.</p>';
+
+  $('w-hist').innerHTML = S.workouts.slice(-15).reverse().map(w => {
+    const vol = w.ex.reduce((a, e) => a + e.sets.reduce((b, s) => b + s.w * s.r, 0), 0);
+    return `<li><div><b>${esc(w.name || 'تمرين')}</b><div class="mute">${fmtDay(w.date)} · ${w.ex.length} تمارين · ${Math.round(vol)} كجم حجم</div></div>
+      <button class="g del" onclick="rmWorkout('${w.id}')">✕</button></li>`;
+  }).join('') || '<li class="mute">لسه مفيش تمارين متسجلة</li>';
+}
+function pickTpl(k) {
+  if (S.draft.ex.some(e => e.sets.some(s => s.ok)) && !confirm('هتمسح التمرين الحالي؟')) return;
+  newDraft(k, PROGRAM[k] || []); renderWork();
+}
+function syncHead() { S.draft.name = $('w-name').value.trim(); S.draft.date = $('w-date').value || today(); }
+function setVal(i, j, f, v) { syncHead(); S.draft.ex[i].sets[j][f] = v === '' ? '' : +v; save(); }
+function tick(i, j) { syncHead(); const s = S.draft.ex[i].sets[j]; s.ok = !s.ok; save(); renderWork(); }
+function addSet(i) { syncHead(); const ss = S.draft.ex[i].sets, l = ss.at(-1) || { w: '', r: '' }; ss.push({ w: l.w, r: l.r, ok: false }); save(); renderWork(); }
+function rmSet(i) { syncHead(); if (S.draft.ex[i].sets.length > 1) S.draft.ex[i].sets.pop(); save(); renderWork(); }
+function rmEx(i) { syncHead(); S.draft.ex.splice(i, 1); save(); renderWork(); }
+function addEx() {
+  const n = $('w-new').value.trim(); if (!n) return;
+  syncHead();
+  const prev = lastFor(n);
+  S.draft.ex.push({ n, sets: prev ? prev.map(s => ({ w: s.w, r: s.r, ok: false })) : [{ w: '', r: '', ok: false }] });
+  $('w-new').value = ''; save(); renderWork();
+}
+function saveWorkout() {
+  syncHead();
+  const ex = S.draft.ex.map(e => ({ n: e.n, sets: e.sets.filter(s => +s.r > 0).map(s => ({ w: +s.w || 0, r: +s.r })) })).filter(e => e.sets.length);
+  if (!ex.length) return toast('سجّل مجموعة واحدة على الأقل');
+  S.workouts.push({ id: uid(), date: S.draft.date, name: S.draft.name || 'تمرين', ex });
+  S.workouts.sort((a, b) => a.date.localeCompare(b.date));
+  S.draft = null; save(); toast('تم حفظ التمرين 💪'); renderWork();
+}
+function rmWorkout(id) {
+  if (!confirm('امسح التمرين ده؟')) return;
+  S.workouts = S.workouts.filter(w => w.id !== id); save(); renderWork();
+}
+
+// ---------- الأكل ----------
+function shiftDay(n) { const d = new Date(($('f-date').value || today()) + 'T00:00'); d.setDate(d.getDate() + n); $('f-date').value = iso(d); renderFood(); }
+function frequentMeals() {
+  const m = new Map();
+  S.meals.forEach(x => { const c = m.get(x.name) || { ...x, c: 0 }; c.c++; c.kcal = x.kcal; c.pro = x.pro; m.set(x.name, c); });
+  return [...m.values()].sort((a, b) => b.c - a.c);
+}
+function renderFood() {
+  $('sub').textContent = 'سجّل كل اللي بتاكله';
+  if (!$('f-date').value) $('f-date').value = today();
+  const d = $('f-date').value, t = targets(), tot = dayTotals(d);
+  $('f-kcal').textContent = tot.k; $('f-kcal-t').textContent = `من ${t.kcal} سعرة · باقي ${Math.max(0, t.kcal - tot.k)}`; $('f-kcal-b').style.width = pct(tot.k, t.kcal);
+  $('f-pro').textContent = tot.p; $('f-pro-t').textContent = `من ${t.pro} جم بروتين`; $('f-pro-b').style.width = pct(tot.p, t.pro);
+  const fm = frequentMeals();
+  $('meal-list').innerHTML = fm.map(m => `<option value="${esc(m.name)}">`).join('');
+  $('m-quick').innerHTML = fm.slice(0, 8).map((m, i) => `<button class="chip" onclick="quickMeal(${i})">+ ${esc(m.name)}</button>`).join('');
+  $('m-list').innerHTML = S.meals.filter(m => m.date === d).map(m =>
+    `<li><div><b>${esc(m.name)}</b><div class="mute">${m.kcal} سعرة · ${m.pro} جم بروتين</div></div><button class="g del" onclick="rmMeal('${m.id}')">✕</button></li>`
+  ).join('') || '<li class="mute">مفيش وجبات لليوم ده</li>';
+}
+function fillMeal() {
+  const m = frequentMeals().find(x => x.name === $('m-name').value);
+  if (m) { $('m-kcal').value = m.kcal; $('m-pro').value = m.pro; }
+}
+function addMeal() {
+  const name = $('m-name').value.trim(), kcal = +$('m-kcal').value || 0, pro = +$('m-pro').value || 0;
+  if (!name || (!kcal && !pro)) return toast('اكتب الوجبة والسعرات');
+  S.meals.push({ id: uid(), date: $('f-date').value || today(), name, kcal, pro });
+  $('m-name').value = $('m-kcal').value = $('m-pro').value = '';
+  save(); toast('تمت الإضافة'); renderFood();
+}
+function quickMeal(i) {
+  const m = frequentMeals()[i];
+  S.meals.push({ id: uid(), date: $('f-date').value || today(), name: m.name, kcal: m.kcal, pro: m.pro });
+  save(); toast('تمت الإضافة'); renderFood();
+}
+function rmMeal(id) { S.meals = S.meals.filter(m => m.id !== id); save(); renderFood(); }
+
+// ---------- التقدم ----------
+function lineChart(pts, unit) {
+  if (pts.length < 2) return '<p class="mute" style="margin:0">محتاج تسجيلين على الأقل عشان يظهر الرسم.</p>';
+  const W = 320, H = 170, P = 26;
+  const ys = pts.map(p => p.y), lo = Math.min(...ys), hi = Math.max(...ys), span = hi - lo || 1;
+  const x = i => P + i * (W - P * 2) / (pts.length - 1);
+  const y = v => H - P - (v - lo) / span * (H - P * 2);
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.y).toFixed(1)}`).join('');
+  const area = `${path}L${x(pts.length - 1)},${H - P}L${x(0)},${H - P}Z`;
+  const last = pts.length - 1;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="direction:ltr">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c6f432" stop-opacity=".25"/><stop offset="1" stop-color="#c6f432" stop-opacity="0"/></linearGradient></defs>
+    <line x1="${P}" x2="${W - P}" y1="${y(hi)}" y2="${y(hi)}" stroke="#24272c" stroke-dasharray="3 4"/>
+    <line x1="${P}" x2="${W - P}" y1="${y(lo)}" y2="${y(lo)}" stroke="#24272c" stroke-dasharray="3 4"/>
+    <text x="2" y="${y(hi) + 4}" fill="#8a9099" font-size="10">${+hi.toFixed(1)}</text>
+    <text x="2" y="${y(lo) + 4}" fill="#8a9099" font-size="10">${+lo.toFixed(1)}</text>
+    <path d="${area}" fill="url(#g)"/>
+    <path d="${path}" fill="none" stroke="#c6f432" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    <circle cx="${x(last)}" cy="${y(pts[last].y)}" r="4" fill="#c6f432"/>
+    <text x="${P}" y="${H - 6}" fill="#8a9099" font-size="10">${pts[0].d.slice(5)}</text>
+    <text x="${W - P}" y="${H - 6}" fill="#8a9099" font-size="10" text-anchor="end">${pts[last].d.slice(5)} · ${+pts[last].y.toFixed(1)} ${unit}</text>
+  </svg>`;
+}
+function exHistory(name) {
+  return S.workouts.map(w => {
+    const e = w.ex.find(x => x.n === name);
+    return e && { d: w.date, y: Math.max(...e.sets.map(s => e1rm(s.w, s.r))) };
+  }).filter(Boolean);
+}
+function renderProg() {
+  $('sub').textContent = 'شوف اتحسنت قد إيه';
+  const ws = S.weights;
+  $('p-w').textContent = ws.length ? ws.at(-1).w : S.profile.w;
+  if (ws.length > 1) {
+    const d = +(ws.at(-1).w - ws[0].w).toFixed(1);
+    $('p-d').textContent = (d > 0 ? '+' : '') + d;
+    $('p-d').style.color = d <= 0 ? 'var(--acc)' : 'var(--warn)';
+  }
+  const since = iso(new Date(Date.now() - 30 * 864e5));
+  $('p-n').textContent = S.workouts.filter(w => w.date >= since).length;
+  $('p-wchart').innerHTML = lineChart(ws.map(x => ({ d: x.date, y: x.w })), 'كجم');
+
+  const names = [...new Set(S.workouts.flatMap(w => w.ex.map(e => e.n)))];
+  const cur = $('p-ex').value;
+  $('p-ex').innerHTML = names.map(n => `<option ${n === cur ? 'selected' : ''}>${esc(n)}</option>`).join('') || '<option>لسه مفيش تمارين</option>';
+  renderExChart();
+
+  $('p-prs').innerHTML = names.map(n => {
+    let best = null;
+    S.workouts.forEach(w => w.ex.filter(e => e.n === n).forEach(e => e.sets.forEach(s => { if (!best || s.w > best.w || (s.w === best.w && s.r > best.r)) best = s; })));
+    return `<li><span>${esc(n)}</span><b class="acc" style="direction:ltr">${best.w} kg × ${best.r}</b></li>`;
+  }).join('') || '<li class="mute">سجّل تمارينك وهتظهر أرقامك هنا</li>';
+}
+function renderExChart() { $('p-exchart').innerHTML = lineChart(exHistory($('p-ex').value), 'كجم'); }
+
+// ---------- الإعدادات ----------
+function renderSet() {
+  $('sub').textContent = '';
+  const p = S.profile, t = targets();
+  $('s-h').value = p.h; $('s-w').value = p.w; $('s-bf').value = p.bf; $('s-act').value = p.act; $('s-goal').value = p.goal;
+  $('s-calc').innerHTML = `
+    <div class="stat"><b class="acc">${t.kcal}</b><span>سعرة / يوم</span></div>
+    <div class="stat"><b style="color:var(--blue)">${t.pro}</b><span>جم بروتين</span></div>
+    <div class="stat"><b>${Math.round(t.tdee)}</b><span>حرق يومي</span></div>`;
+  const bmi = p.w / (p.h / 100) ** 2;
+  $('s-note').textContent = `الكتلة الصافية ≈ ${t.lbm.toFixed(1)} كجم · BMI ${bmi.toFixed(1)} · الحساب بمعادلة Katch-McArdle على نسبة الدهون.`;
+}
+function saveProfile() {
+  S.profile = { h: +$('s-h').value || 173, w: +$('s-w').value || 83, bf: +$('s-bf').value || 20, act: +$('s-act').value, goal: +$('s-goal').value };
+  save(); toast('تم الحفظ'); renderSet();
+}
+function exportData() {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(S, null, 1)], { type: 'application/json' }));
+  a.download = `gym-backup-${today()}.json`; a.click();
+}
+function importData(inp) {
+  const f = inp.files[0]; if (!f) return;
+  f.text().then(t => {
+    try { const d = JSON.parse(t); if (!d.workouts) throw 0; S = Object.assign(DEF(), d); save(); toast('تم الاستيراد'); go('home'); }
+    catch { toast('الملف ده مش صالح'); }
+  });
+  inp.value = '';
+}
+function resetAll() {
+  if (!confirm('متأكد؟ كل التمارين والوجبات هتتمسح.')) return;
+  S = DEF(); save(); go('home');
+}
+
+go('home');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
