@@ -290,47 +290,51 @@ nav button.on svg{stroke-width:2.4}
   </section>
 
   <section id="v-prog" class="hide">
-    <div class="grid3" style="margin-top:12px">
-      <div class="card stat" style="margin:0"><b id="p-w">—</b><span>الوزن (المتوسط)</span></div>
-      <div class="card stat" style="margin:0"><b id="p-rate">—</b><span>كجم في الأسبوع</span></div>
-      <div class="card stat" style="margin:0"><b id="p-n">0</b><span>تمارين الأسبوع</span></div>
-    </div>
-    <div class="card">
-      <h2>حرقك الفعلي <small>من أكلك ووزنك</small></h2>
-      <div id="p-tdee"></div>
-    </div>
-    <div class="card">
-      <h2>الوزن <small>النقط: كل يوم، والخط: المتوسط</small></h2>
-      <div id="p-wchart"></div>
-    </div>
-    <div class="card">
-      <h2>الحجم الأسبوعي <small>مجموعات آخر 7 أيام</small></h2>
-      <div id="p-vol"></div>
-      <p class="mute" style="margin:8px 0 0">المنطقة الملوّنة هي الحجم المناسب. هدف الأكتاف والذراع أعلى عشان عليهم التركيز.</p>
-    </div>
-    <div class="card">
-      <h2>القوة <small>أقصى وزن لعدّة واحدة (تقديري)</small></h2>
-      <select id="p-ex" onchange="renderExChart()" style="margin-bottom:10px" aria-label="التمرين"></select>
-      <div id="p-exchart"></div>
-    </div>
-    <div class="card">
-      <h2>الالتزام <small>آخر 12 أسبوع</small></h2>
-      <div class="heat" id="p-heat"></div>
-    </div>
-    <div class="card">
-      <h2>المقاسات <small>بالسنتيمتر</small></h2>
-      <div class="grid4">
-        <div><label for="m-waist">الوسط</label><input type="number" inputmode="decimal" step="0.5" id="m-waist"></div>
-        <div><label for="m-arm">الدراع</label><input type="number" inputmode="decimal" step="0.5" id="m-arm"></div>
-        <div><label for="m-chest">الصدر</label><input type="number" inputmode="decimal" step="0.5" id="m-chest"></div>
-        <div><label for="m-sh">الكتف</label><input type="number" inputmode="decimal" step="0.5" id="m-sh"></div>
+    <div class="chips" id="p-tabs" style="margin:8px 0 4px"></div>
+
+    <div id="p-week"></div>
+
+    <div id="p-body" class="hide">
+      <div class="card"><h2>هدف الوزن</h2><div id="p-goal"></div></div>
+      <div class="card"><h2>حرقك الفعلي <small>من أكلك ووزنك</small></h2><div id="p-tdee"></div></div>
+      <div class="card">
+        <h2>الوزن <small>النقط: كل يوم، والخط: المتوسط</small></h2>
+        <div class="chips" id="p-wrange" style="margin-bottom:10px"></div>
+        <div id="p-wchart"></div>
       </div>
-      <button class="w" style="margin-top:10px" onclick="saveMeas()">سجّل المقاسات</button>
-      <ul class="list" id="p-meas" style="margin-top:6px"></ul>
+      <div class="card">
+        <h2>المقاسات <small>بالسنتيمتر</small></h2>
+        <div class="grid4">
+          <div><label for="m-waist">الوسط</label><input type="number" inputmode="decimal" step="0.5" id="m-waist"></div>
+          <div><label for="m-arm">الدراع</label><input type="number" inputmode="decimal" step="0.5" id="m-arm"></div>
+          <div><label for="m-chest">الصدر</label><input type="number" inputmode="decimal" step="0.5" id="m-chest"></div>
+          <div><label for="m-sh">الكتف</label><input type="number" inputmode="decimal" step="0.5" id="m-sh"></div>
+        </div>
+        <button class="w" style="margin-top:10px" onclick="saveMeas()">سجّل المقاسات</button>
+        <ul class="list" id="p-meas" style="margin-top:6px"></ul>
+      </div>
     </div>
-    <div class="card">
-      <h2>أرقامك القياسية</h2>
-      <ul class="list" id="p-prs"></ul>
+
+    <div id="p-str" class="hide">
+      <div class="card"><h2>استشفاء العضلات</h2><div id="p-recov"></div></div>
+      <div class="card"><h2>مستواك <small>مقارنة بوزن جسمك</small></h2><ul class="list" id="p-std"></ul></div>
+      <div class="card"><h2>تمارينك <small>دوس على أي تمرين لتفاصيله</small></h2><ul class="list" id="p-exlist"></ul></div>
+      <div class="card"><h2>المجموعات كل أسبوع <small>آخر 8 أسابيع</small></h2><div id="p-volw"></div></div>
+      <div class="card">
+        <h2>الحجم لكل عضلة <small>آخر 7 أيام</small></h2>
+        <div id="p-vol"></div>
+        <p class="mute" style="margin:8px 0 0">المنطقة الملوّنة هي الحجم المناسب. هدف الأكتاف والذراع أعلى عشان عليهم التركيز.</p>
+      </div>
+      <div class="card"><h2>الالتزام <small>آخر 12 أسبوع</small></h2><div class="heat" id="p-heat"></div></div>
+      <div class="card"><h2>آخر الأرقام القياسية</h2><ul class="list" id="p-prs"></ul></div>
+    </div>
+
+    <div id="p-food" class="hide">
+      <div class="card"><h2>السعرات <small>آخر 14 يوم</small></h2><div id="p-kbars"></div>
+        <p class="mute" style="margin:6px 0 0"><span class="green">أخضر</span>: في الهدف ±10%، <span class="yellow">أصفر</span>: أقل، <span class="red">أحمر</span>: أكتر.</p></div>
+      <div class="card"><h2>البروتين <small>آخر 14 يوم</small></h2><div id="p-pbars"></div></div>
+      <div class="card"><h2>الأرقام</h2><div id="p-nstats"></div></div>
+      <div class="card"><h2>أكتر حاجة بتجيب منها سعرات <small>آخر 30 يوم</small></h2><ul class="list" id="p-top"></ul></div>
     </div>
   </section>
 
@@ -415,6 +419,7 @@ nav button.on svg{stroke-width:2.4}
 
 <script src="data.js"></script>
 <script src="foods.js"></script>
+<script src="analytics.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -353,6 +353,12 @@ function coachTips() {
     const left = Math.round(t.pro - tot.p);
     tips.push(['🥚', `فاضلك ${left} جم بروتين. علبة تونة فيها 28 جم، و200 جم قريش فيها 24 جم.`]);
   }
+  if (S.workouts.length) {
+    const ws = weekStats(weekStart(d));
+    tips.push(['📊', `درجة أسبوعك لحد دلوقتي ${ws.score}/100. <button class="sm" style="margin-top:6px;display:block" onclick="progTab='week';go('prog')">شوف التقرير</button>`]);
+    const rec = recovery(), tired = Object.keys(MUSCLES).filter(m => rec[m] < 50);
+    if (tired.length) tips.push(['🔋', `${tired.map(m => MUSCLES[m]).join(' و')} لسه متعبة (أقل من 50% استشفاء). لو تمرين النهارده عليها، خليه أخف شوية.`]);
+  }
   if (S.workouts.length >= 3) {
     const v = weeklyVolume(), low = FOCUS.filter(m => v[m] < VOLUME[m][0]);
     if (low.length) tips.push(['💪', `حجم ${low.map(m => MUSCLES[m]).join(' و')} قليل الأسبوع ده. متفوّتش يوم الكتف والدراع.`]);
@@ -883,55 +889,6 @@ function lineChart(pts, trend) {
     <text x="${P}" y="${H - 6}" style="fill:var(--ink-3)" font-size="10">${pts[0].d.slice(5)}</text>
     <text x="${W - P}" y="${H - 6}" style="fill:var(--ink-3)" font-size="10" text-anchor="end">${pts.at(-1).d.slice(5)} · ${num(L.y)}</text>
   </svg>`;
-}
-function renderProg() {
-  $('sub').textContent = 'البيانات بتقول إيه';
-  const ts = trendSeries(), rate = weeklyRate(), goalR = GOALS[S.profile.goal].r;
-  $('p-w').textContent = ts.length ? num(ts.at(-1).t) : S.profile.w;
-  $('p-rate').textContent = rate == null ? '—' : sgn(rate);
-  $('p-rate').style.color = rate == null ? '' : Math.abs(rate - goalR * curWeight()) < 0.25 ? 'var(--acc)' : 'var(--amber)';
-  $('p-n').textContent = S.workouts.filter(w => w.date >= weekStart(today())).length + '/5';
-  const ex = expenditure(), tg = targets();
-  $('p-tdee').innerHTML = ex.need
-    ? `<p style="margin:0">عشان أحسب حرقك الحقيقي، محتاج <b>10 أيام أكل متسجل</b> و<b>8 مرات وزن</b> خلال 4 أسابيع.</p>
-       <p class="mute" style="margin:6px 0 0">عندك دلوقتي ${ex.days} يوم أكل و${ex.weighs} مرة وزن. وده أدق بكتير من أي معادلة.</p>`
-    : `<div class="energy">${ex.tdee.toLocaleString('en')}</div><div class="mute">سعرة في اليوم حرقك الفعلي. المعادلة كانت متوقعة ${r50(tg.tdee).toLocaleString('en')}، ومتوسط أكلك ${ex.avgIn.toLocaleString('en')}.</div>
-       ${Math.abs(ex.tdee - tg.tdee) >= 150 ? `<button class="p w" style="margin-top:12px" onclick="applyTdee(${ex.tdee})">ظبّط هدفي على الحرق الفعلي (${r50(ex.tdee * (1 + GOALS[S.profile.goal].d))} سعرة)</button>` : '<p class="mute" style="margin:8px 0 0">هدفك مظبوط على حرقك الفعلي.</p>'}`;
-  $('p-wchart').innerHTML = lineChart(ts.map(p => ({ d: p.d, y: p.y })), ts.map(p => ({ d: p.d, y: p.t })));
-
-  const v = weeklyVolume(), scale = 30;
-  $('p-vol').innerHTML = Object.keys(MUSCLES).map(m => {
-    const [lo, hi] = VOLUME[m], val = v[m], cls = val < lo ? 'low' : val > hi * 1.15 ? 'hi' : '';
-    return `<div class="vol"><span>${MUSCLES[m]}${FOCUS.includes(m) ? ' ★' : ''}</span>
-      <div class="track"><div class="band" style="right:${lo / scale * 100}%;width:${(hi - lo) / scale * 100}%"></div><div class="fill ${cls}" style="width:${Math.min(100, val / scale * 100)}%"></div></div>
-      <b class="ltr" style="font-weight:600">${num(val)}</b></div>`;
-  }).join('');
-
-  const ids = [...new Set(S.workouts.flatMap(w => w.ex.map(e => e.id)))].filter(id => !isCardio(id));
-  const cur = $('p-ex').value;
-  $('p-ex').innerHTML = ids.map(id => `<option value="${esc(id)}" ${id === cur ? 'selected' : ''}>${esc(exInfo(id).ar)}</option>`).join('') || '<option>لسه مفيش تمارين</option>';
-  renderExChart();
-
-  const start = addDays(weekStart(today()), -77), t = today(), days = new Set(S.workouts.map(w => w.date));
-  $('p-heat').innerHTML = Array.from({ length: 84 }, (_, i) => { const d = addDays(start, i); return `<i class="${d > t ? 'fut' : days.has(d) ? 'on' : ''}" title="${d}"></i>`; }).join('');
-
-  const M = S.meas, f0 = M[0], fl = M.at(-1);
-  const ml = { waist: 'وسط', arm: 'دراع', chest: 'صدر', sh: 'كتف' };
-  $('p-meas').innerHTML = fl ? Object.keys(ml).filter(k => fl[k]).map(k => {
-    const d = f0[k] ? fl[k] - f0[k] : 0, good = k === 'waist' ? d <= 0 : d >= 0;
-    return `<li><span>${ml[k]}</span><span><b>${fl[k]}</b> ${M.length > 1 && d ? `<span class="${good ? 'acc' : 'warn'} ltr">(${sgn(d)})</span>` : ''}</span></li>`;
-  }).join('') + `<li class="mute">آخر قياس ${fmtShort(fl.date)} · قيس كل أسبوعين</li>` : '<li class="mute">قيس الوسط والدراع كل أسبوعين. لو الوسط بينزل والدراع ثابت أو بيزيد، يبقى الريكومب شغال.</li>';
-
-  $('p-prs').innerHTML = ids.map(id => {
-    let best = null;
-    S.workouts.forEach(w => w.ex.forEach(e => e.id === id && e.sets.forEach(s => { if (!best || e1rm(s.w, s.r) > e1rm(best.w, best.r)) best = s; })));
-    return `<li><span>${esc(exInfo(id).ar)}</span><span class="ltr"><b class="acc">${best.w} kg × ${best.r}</b> <span class="mute">≈${Math.round(e1rm(best.w, best.r))}</span></span></li>`;
-  }).join('') || '<li class="mute">سجّل تمارينك وأرقامك هتظهر هنا</li>';
-}
-function renderExChart() {
-  const id = $('p-ex').value;
-  const pts = S.workouts.map(w => { const e = w.ex.find(x => x.id === id); return e && { d: w.date, y: Math.max(...e.sets.map(s => e1rm(s.w, s.r))) }; }).filter(Boolean);
-  $('p-exchart').innerHTML = lineChart(pts);
 }
 function saveMeas() {
   const o = { date: today() };
