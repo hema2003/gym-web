@@ -14,28 +14,31 @@
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#0e0f11; --card:#17191c; --line:#24272c; --text:#f2f3f5; --mute:#8a9099;
-  --acc:#c6f432; --acc-ink:#0e0f11; --warn:#ff6b5b; --blue:#5bb8ff;
-  --r:16px;
+  --bg:#0e0f11; --card:#17191c; --card2:#1d2024; --line:#26292e; --text:#f2f3f5; --mute:#8a9099;
+  --acc:#c6f432; --acc-ink:#0e0f11; --warn:#ff6b5b; --blue:#5bb8ff; --amber:#ffc24b; --pink:#ff7ab8;
+  --r:18px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--text)}
 body{font-family:Cairo,system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;font-size:15px;line-height:1.5;
-  padding:env(safe-area-inset-top) 0 calc(76px + env(safe-area-inset-bottom))}
-header{display:flex;align-items:center;justify-content:space-between;padding:18px 16px 6px;max-width:560px;margin:auto}
+  padding:env(safe-area-inset-top) 0 calc(84px + env(safe-area-inset-bottom));overscroll-behavior-y:none}
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 16px 4px;max-width:560px;margin:auto}
 header h1{font-size:22px;margin:0;font-weight:800}
-header small{color:var(--mute);display:block;font-size:13px;font-weight:400}
+header small{color:var(--mute);display:block;font-size:13px}
 main{max-width:560px;margin:auto;padding:0 16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:12px 0}
-.card h2{font-size:15px;margin:0 0 10px;font-weight:600;color:var(--mute)}
+.card h2{font-size:14px;margin:0 0 10px;font-weight:600;color:var(--mute);display:flex;justify-content:space-between;align-items:center;gap:8px}
 .row{display:flex;gap:8px;align-items:center}
 .row>*{flex:1;min-width:0}
+.row>.fit{flex:0 0 auto}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.stat b{display:block;direction:ltr;text-align:right;font-size:24px;font-weight:800;line-height:1.2}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat b{display:block;font-size:22px;font-weight:800;line-height:1.25;direction:ltr;text-align:right}
 .stat span{color:var(--mute);font-size:12px}
-.acc{color:var(--acc)}
+.acc{color:var(--acc)} .blue{color:var(--blue)} .amber{color:var(--amber)} .pink{color:var(--pink)} .warn{color:var(--warn)}
 .mute{color:var(--mute);font-size:13px}
+.ltr{direction:ltr;unicode-bidi:isolate}
 input,select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;
   padding:11px 12px;font:inherit;outline:none}
 input:focus,select:focus{border-color:var(--acc)}
@@ -45,39 +48,101 @@ button{font:inherit;border:0;border-radius:12px;padding:11px 14px;cursor:pointer
 button.p{background:var(--acc);color:var(--acc-ink)}
 button.g{background:none;color:var(--mute);padding:6px 8px}
 button.w{width:100%}
-button:active{transform:scale(.98)}
-.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+button.sm{padding:6px 10px;font-size:13px;border-radius:10px}
+button:active{transform:scale(.97)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{white-space:nowrap;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600;color:var(--text)}
 .chip.on{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--card2);color:var(--mute)}
+.tag.acc{background:rgba(198,244,50,.12);color:var(--acc)}
+.tag.warn{background:rgba(255,107,91,.12);color:var(--warn)}
+.tag.blue{background:rgba(91,184,255,.12);color:var(--blue)}
 .bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:6px}
-.bar i{display:block;height:100%;background:var(--acc);border-radius:99px;transition:width .3s}
-.bar.b i{background:var(--blue)}
+.bar i{display:block;height:100%;background:var(--c,var(--acc));border-radius:99px;transition:width .3s}
 .list{list-style:none;margin:0;padding:0}
 .list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);gap:8px}
 .list li:last-child{border:0}
-.ex{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
-.ex:first-of-type{border:0;margin:0;padding:0}
-.ex-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.ex-h b{font-size:15px}
-.set{display:grid;grid-template-columns:28px 1fr 1fr 36px;gap:8px;align-items:center;margin:6px 0}
+.hide{display:none!important}
+.del{color:var(--warn)}
+
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center}
+.week div{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:6px 0;font-size:11px;color:var(--mute)}
+.week div b{display:block;font-size:12px;color:var(--text);font-weight:600}
+.week .today{border-color:var(--acc)}
+.week .done{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.week .done b{color:var(--acc-ink)}
+
+.ready{display:grid;grid-template-columns:56px 1fr 1fr 1fr;gap:6px;align-items:center;margin:5px 0}
+.ready span{font-size:13px;color:var(--mute)}
+.ready button{padding:7px 0;font-size:13px;background:var(--bg);border:1px solid var(--line)}
+.ready button.on{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+
+.coach{list-style:none;margin:0;padding:0}
+.coach li{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.coach li:last-child{border:0}
+.coach li i{font-style:normal;flex:0 0 22px;text-align:center}
+
+.ex{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+.ex:first-child{border:0;margin:0;padding:0}
+.ex-h{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.ex-h b{font-size:16px;display:block;line-height:1.3}
+.ex-h small{color:var(--mute);font-size:12px}
+.target{margin:6px 0 2px;font-size:13px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.set{display:grid;grid-template-columns:22px 1fr 1fr 46px 42px;gap:6px;align-items:center;margin:6px 0}
 .set .n{color:var(--mute);text-align:center;font-size:13px}
-.set.done input{border-color:var(--acc)}
-.tick{background:var(--bg);border:1px solid var(--line);padding:0;height:40px;border-radius:10px;color:var(--mute)}
+.set input{padding:10px 4px}
+.set.head{margin:8px 0 0;font-size:11px;color:var(--mute);text-align:center}
+.set .rir{padding:0;height:42px;background:var(--bg);border:1px solid var(--line);font-size:13px;color:var(--mute)}
+.tick{background:var(--bg);border:1px solid var(--line);padding:0;height:42px;border-radius:12px;color:var(--mute);font-size:18px}
+.set.done input{border-color:rgba(198,244,50,.5)}
 .set.done .tick{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
-nav{position:fixed;bottom:0;inset-inline:0;background:rgba(14,15,17,.92);backdrop-filter:blur(12px);
+.banner{border-radius:14px;padding:10px 12px;font-size:13px;margin-bottom:10px;background:rgba(91,184,255,.1);color:var(--blue)}
+.banner.warn{background:rgba(255,194,75,.1);color:var(--amber)}
+
+#rest{position:fixed;inset-inline:12px;bottom:calc(76px + env(safe-area-inset-bottom));max-width:536px;margin:auto;z-index:6;
+  background:var(--card2);border:1px solid var(--line);border-radius:16px;padding:10px 12px;display:flex;align-items:center;gap:8px;
+  box-shadow:0 10px 30px rgba(0,0,0,.5)}
+#rest .t{font-size:24px;font-weight:800;direction:ltr;min-width:66px}
+#rest .rb{flex:1;height:6px;background:var(--line);border-radius:99px;overflow:hidden}
+#rest .rb i{display:block;height:100%;background:var(--acc)}
+#rest button{direction:ltr}
+#rest.end .t{color:var(--acc)}
+
+.macro{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.macro .stat b{font-size:17px}
+.food-it{display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+.food-it:active{background:var(--card2)}
+.water{display:flex;gap:4px;flex-wrap:wrap}
+.water i{flex:1;max-width:24px;height:22px;border-radius:4px 4px 7px 7px;background:var(--line)}
+.water i.on{background:var(--blue)}
+
+svg.chart{width:100%;height:180px;display:block}
+.vol{display:grid;grid-template-columns:58px 1fr 40px;gap:8px;align-items:center;margin:7px 0;font-size:13px}
+.vol .track{height:10px;background:var(--line);border-radius:99px;position:relative;overflow:hidden}
+.vol .band{position:absolute;top:0;bottom:0;background:rgba(198,244,50,.18)}
+.vol .fill{position:absolute;top:2px;bottom:2px;right:0;border-radius:99px;background:var(--acc)}
+.vol .fill.low{background:var(--amber)} .vol .fill.hi{background:var(--warn)}
+.heat{display:grid;grid-template-rows:repeat(7,1fr);grid-auto-flow:column;gap:3px}
+.heat i{aspect-ratio:1;border-radius:3px;background:var(--line)}
+.heat i.on{background:var(--acc)}
+.heat i.fut{background:transparent}
+
+dialog{border:0;padding:0;background:transparent;max-width:560px;width:100%;margin:auto auto 0;max-height:90vh}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+.sheet{background:var(--card);border:1px solid var(--line);border-bottom:0;border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));
+  color:var(--text);max-height:90vh;overflow:auto}
+.sheet h3{margin:0 0 4px;font-size:18px}
+.grip{width:40px;height:4px;border-radius:9px;background:var(--line);margin:-6px auto 12px}
+
+nav{position:fixed;bottom:0;inset-inline:0;background:rgba(14,15,17,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:5}
-nav button{background:none;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;padding:4px 10px}
+nav button{background:none;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;padding:4px 12px}
 nav button svg{width:22px;height:22px}
 nav button.on{color:var(--acc)}
-.hide{display:none!important}
-svg.chart{width:100%;height:180px;display:block}
-.toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--acc);color:var(--acc-ink);
-  padding:10px 18px;border-radius:99px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;z-index:9}
-.toast.on{opacity:1}
-.tip{font-size:13px;color:var(--mute);margin:0;padding-inline-start:18px}
-.tip li{margin:4px 0}
-.del{color:var(--warn)}
+.toast{position:fixed;top:calc(14px + env(safe-area-inset-top));left:50%;transform:translate(-50%,-20px);background:var(--acc);color:var(--acc-ink);
+  padding:10px 18px;border-radius:99px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;z-index:99;max-width:90%;text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
 </style>
 </head>
 <body>
@@ -89,51 +154,60 @@ svg.chart{width:100%;height:180px;display:block}
 </header>
 
 <main>
-  <!-- اليوم -->
+  <!-- ===== اليوم ===== -->
   <section id="v-home">
+    <div class="card"><div class="week" id="h-week"></div></div>
+
     <div class="card">
-      <h2>أكل النهارده</h2>
-      <div class="grid2">
-        <div class="stat"><b id="h-kcal">0</b><span id="h-kcal-t">سعرة</span><div class="bar"><i id="h-kcal-b"></i></div></div>
-        <div class="stat"><b id="h-pro">0</b><span id="h-pro-t">جم بروتين</span><div class="bar b"><i id="h-pro-b"></i></div></div>
-      </div>
-    </div>
-    <div class="card">
-      <h2>تمرين النهارده</h2>
+      <h2><span>تمرين النهارده</span><span id="h-meso"></span></h2>
       <div id="h-work"></div>
     </div>
+
     <div class="card">
-      <h2>وزن الصبح</h2>
-      <div class="row">
-        <input type="number" step="0.1" inputmode="decimal" id="h-w" placeholder="كجم">
-        <button class="p" style="flex:0 0 auto" onclick="addWeight()">سجّل</button>
-      </div>
-      <p class="mute" id="h-wlast" style="margin:8px 0 0"></p>
+      <h2><span>حاسس بإيه النهارده؟</span><span class="mute" id="h-ready-s"></span></h2>
+      <div id="h-ready"></div>
     </div>
+
     <div class="card">
-      <h2>نصايح لهدفك</h2>
-      <ul class="tip" id="h-tips"></ul>
+      <h2><span>التغذية</span><button class="g sm" onclick="go('food')">فتح ←</button></h2>
+      <div class="grid2" id="h-nut"></div>
+      <div class="water" id="h-water" style="margin-top:14px"></div>
+      <div class="row" style="margin-top:8px">
+        <span class="mute" id="h-water-t"></span>
+        <button class="fit sm" onclick="water(-1)">−</button>
+        <button class="fit sm p" onclick="water(1)">+ كوباية</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span>الوزن والخطوات</span><span class="mute" id="h-wtrend"></span></h2>
+      <div class="row">
+        <input type="number" step="0.1" inputmode="decimal" id="h-w" placeholder="الوزن كجم">
+        <input type="number" inputmode="numeric" id="h-steps" placeholder="خطوات">
+        <button class="p fit" onclick="saveDaily()">سجّل</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>المدرب</h2>
+      <ul class="coach" id="h-coach"></ul>
     </div>
   </section>
 
-  <!-- تمرين -->
+  <!-- ===== تمرين ===== -->
   <section id="v-work" class="hide">
     <div class="card">
-      <h2>اختار اليوم من البرنامج</h2>
       <div class="chips" id="w-tpl"></div>
     </div>
     <div class="card">
-      <div class="row" style="margin-bottom:12px">
-        <input id="w-name" placeholder="اسم التمرين (مثلاً: Push)">
-        <input type="date" id="w-date" style="flex:0 0 150px">
+      <div id="w-banner"></div>
+      <div class="row">
+        <div><b id="w-title" style="font-size:18px"></b><div class="mute" id="w-meta"></div></div>
+        <input type="date" id="w-date" class="fit" style="width:148px" onchange="syncHead()">
       </div>
-      <div id="w-ex"></div>
-      <div class="row" style="margin-top:14px">
-        <input id="w-new" placeholder="أضف تمرين..." list="ex-list">
-        <button style="flex:0 0 auto" onclick="addEx()">+ أضف</button>
-      </div>
-      <datalist id="ex-list"></datalist>
-      <button class="p w" style="margin-top:14px" onclick="saveWorkout()">حفظ التمرين ✓</button>
+      <div id="w-ex" style="margin-top:14px"></div>
+      <button class="w" style="margin-top:16px" onclick="openPicker()">+ أضف تمرين</button>
+      <button class="p w" style="margin-top:10px;padding:14px" onclick="finishWorkout()">إنهاء وحفظ التمرين ✓</button>
     </div>
     <div class="card">
       <h2>السجل</h2>
@@ -141,64 +215,73 @@ svg.chart{width:100%;height:180px;display:block}
     </div>
   </section>
 
-  <!-- أكل -->
+  <!-- ===== أكل ===== -->
   <section id="v-food" class="hide">
     <div class="card">
-      <div class="row" style="margin-bottom:10px">
-        <button class="g" style="flex:0 0 auto" onclick="shiftDay(-1)">→</button>
+      <div class="row" style="margin-bottom:12px">
+        <button class="g fit" onclick="shiftDay(-1)">→</button>
         <input type="date" id="f-date" onchange="renderFood()">
-        <button class="g" style="flex:0 0 auto" onclick="shiftDay(1)">←</button>
+        <button class="g fit" onclick="shiftDay(1)">←</button>
       </div>
-      <div class="grid2">
-        <div class="stat"><b id="f-kcal">0</b><span id="f-kcal-t"></span><div class="bar"><i id="f-kcal-b"></i></div></div>
-        <div class="stat"><b id="f-pro">0</b><span id="f-pro-t"></span><div class="bar b"><i id="f-pro-b"></i></div></div>
-      </div>
+      <div class="macro" id="f-macro"></div>
     </div>
     <div class="card">
-      <h2>أضف وجبة</h2>
-      <input id="m-name" placeholder="الوجبة (مثلاً: 200جم فراخ + رز)" list="meal-list" oninput="fillMeal()" style="margin-bottom:8px">
-      <datalist id="meal-list"></datalist>
-      <div class="row">
-        <div><label>سعرات</label><input type="number" inputmode="numeric" id="m-kcal"></div>
-        <div><label>بروتين (جم)</label><input type="number" inputmode="numeric" id="m-pro"></div>
-      </div>
-      <button class="p w" style="margin-top:12px" onclick="addMeal()">أضف</button>
-      <div class="chips" id="m-quick" style="margin-top:12px"></div>
+      <button class="p w" onclick="openFood()">+ أضف أكل</button>
+      <div class="chips" id="f-quick" style="margin-top:12px"></div>
     </div>
     <div class="card">
-      <h2>نظام أكل رخيص (اضغط على الوجبة لما تاكلها)</h2>
-      <ul class="list" id="m-plan"></ul>
-      <p class="mute" style="margin:8px 0 0">بدائل رخيصة للبروتين: عدس، كبدة فراخ، بيض، لبن، سردين. لو الوزن ثابت أسبوعين قلّل رغيف.</p>
+      <h2><span>النظام الرخيص</span><span class="mute" id="f-plan-t"></span></h2>
+      <ul class="list" id="f-plan"></ul>
     </div>
     <div class="card">
-      <h2>وجبات اليوم</h2>
-      <ul class="list" id="m-list"></ul>
+      <h2>أكلت إيه</h2>
+      <ul class="list" id="f-list"></ul>
     </div>
   </section>
 
-  <!-- تقدم -->
+  <!-- ===== تقدم ===== -->
   <section id="v-prog" class="hide">
     <div class="grid3" style="margin-top:12px">
-      <div class="card stat" style="margin:0"><b id="p-w">—</b><span>الوزن الحالي</span></div>
-      <div class="card stat" style="margin:0"><b id="p-d">—</b><span>التغيير</span></div>
-      <div class="card stat" style="margin:0"><b id="p-n">0</b><span>تمرين (30 يوم)</span></div>
+      <div class="card stat" style="margin:0"><b id="p-w">—</b><span>الوزن (متوسط)</span></div>
+      <div class="card stat" style="margin:0"><b id="p-rate">—</b><span>كجم / أسبوع</span></div>
+      <div class="card stat" style="margin:0"><b id="p-n">0</b><span>تمارين الأسبوع</span></div>
     </div>
     <div class="card">
-      <h2>الوزن</h2>
+      <h2><span>الوزن</span><span class="mute">نقط: يومي · خط: متوسط</span></h2>
       <div id="p-wchart"></div>
     </div>
     <div class="card">
-      <h2>قوة التمرين (أعلى 1RM تقديري)</h2>
+      <h2><span>الحجم الأسبوعي (آخر 7 أيام)</span><span class="mute">مجموعات</span></h2>
+      <div id="p-vol"></div>
+      <p class="mute" style="margin:8px 0 0">المنطقة الفاتحة هي الحجم المثالي. هدف الكتف والدراع أعلى عشان هما التركيز.</p>
+    </div>
+    <div class="card">
+      <h2>القوة (1RM تقديري)</h2>
       <select id="p-ex" onchange="renderExChart()" style="margin-bottom:10px"></select>
       <div id="p-exchart"></div>
     </div>
     <div class="card">
-      <h2>أرقامك القياسية</h2>
+      <h2>الالتزام (آخر 12 أسبوع)</h2>
+      <div class="heat" id="p-heat"></div>
+    </div>
+    <div class="card">
+      <h2>المقاسات (سم)</h2>
+      <div class="grid4">
+        <div><label>وسط</label><input type="number" step="0.5" id="m-waist"></div>
+        <div><label>دراع</label><input type="number" step="0.5" id="m-arm"></div>
+        <div><label>صدر</label><input type="number" step="0.5" id="m-chest"></div>
+        <div><label>كتف</label><input type="number" step="0.5" id="m-sh"></div>
+      </div>
+      <button class="w" style="margin-top:10px" onclick="saveMeas()">سجّل المقاسات</button>
+      <ul class="list" id="p-meas" style="margin-top:6px"></ul>
+    </div>
+    <div class="card">
+      <h2>أرقامك القياسية 🏆</h2>
       <ul class="list" id="p-prs"></ul>
     </div>
   </section>
 
-  <!-- إعدادات -->
+  <!-- ===== إعدادات ===== -->
   <section id="v-set" class="hide">
     <div class="card">
       <h2>بياناتك</h2>
@@ -208,39 +291,64 @@ svg.chart{width:100%;height:180px;display:block}
         <div><label>الدهون %</label><input type="number" id="s-bf"></div>
       </div>
       <div class="grid2" style="margin-top:10px">
-        <div><label>النشاط</label>
+        <div><label>حركتك برا الجيم</label>
           <select id="s-act">
-            <option value="1.375">خفيف (3 أيام)</option>
-            <option value="1.55" selected>متوسط (4-5 أيام)</option>
-            <option value="1.725">عالي (6 أيام)</option>
+            <option value="1.45">قاعد أغلب اليوم</option>
+            <option value="1.6">متوسط</option>
+            <option value="1.75">شغلي فيه حركة</option>
           </select></div>
         <div><label>الهدف</label>
           <select id="s-goal">
-            <option value="-500">تنشيف (نزول دهون)</option>
-            <option value="-250">ريكومب (دهون ↓ عضل ↑)</option>
-            <option value="0">ثبات</option>
-            <option value="300">تضخيم</option>
+            <option value="cut">تنشيف</option>
+            <option value="recomp">ريكومب (دهون ↓ عضل ↑)</option>
+            <option value="maint">ثبات</option>
+            <option value="bulk">تضخيم نضيف</option>
           </select></div>
+      </div>
+      <div class="grid2" style="margin-top:10px">
+        <div><label>بداية الدورة التدريبية</label><input type="date" id="s-meso"></div>
+        <div><label>تعديل السعرات ±</label><input type="number" step="50" id="s-adj"></div>
       </div>
       <button class="p w" style="margin-top:12px" onclick="saveProfile()">حفظ</button>
     </div>
     <div class="card">
-      <h2>أهدافك المحسوبة</h2>
-      <div class="grid3" id="s-calc"></div>
+      <h2>أهدافك اليومية</h2>
+      <div class="grid4" id="s-calc"></div>
       <p class="mute" id="s-note" style="margin:10px 0 0"></p>
     </div>
     <div class="card">
+      <h2>الفلسفة اللي التطبيق ماشي بيها</h2>
+      <ul class="coach">
+        <li><i>📈</i><span><b>Double Progression:</b> ليك نطاق عدات، مثلًا 8-12. زوّد عدة كل مرة لحد ما توصل للآخر في كل المجموعات، وبعدها زوّد الوزن وارجع لأول النطاق. التطبيق بيحسبلك الهدف لوحده.</span></li>
+        <li><i>🎯</i><span><b>RIR:</b> معناها كام عدة كان ممكن تعملها زيادة. خليها 1-2 في أغلب المجموعات، ومفيش داعي توصل للفشل كل مرة.</span></li>
+        <li><i>📊</i><span><b>الحجم الأسبوعي:</b> العضلة بتكبر بعدد المجموعات الصعبة في الأسبوع. التطبيق بيعدّها لكل عضلة، وبيحسب التمرين المساعد بنص مجموعة.</span></li>
+        <li><i>🔄</i><span><b>Deload:</b> 4 أسابيع تقيلة وبعدهم أسبوع خفيف، مجموعات أقل ووزن أقل 10%، عشان جسمك يستشفى.</span></li>
+        <li><i>⚖️</i><span><b>سعرات بتتظبط لوحدها:</b> التطبيق بيحسب متوسط وزنك مش وزن يوم واحد. لو نزولك أسرع أو أبطأ من هدفك بيقترح تعديل السعرات بعد أسبوعين.</span></li>
+        <li><i>😴</i><span><b>الجاهزية:</b> لو نومك وطاقتك وحشين، التمرين بيخفّ لوحده مجموعة من كل تمرين.</span></li>
+      </ul>
+    </div>
+    <div class="card">
       <h2>نسخة احتياطية</h2>
-      <p class="mute" style="margin-top:0">البيانات محفوظة على تلفونك بس. خد نسخة كل فترة.</p>
+      <p class="mute" style="margin-top:0">البيانات محفوظة على تلفونك بس، فخد نسخة كل فترة.</p>
       <div class="row">
         <button onclick="exportData()">تصدير ⬇</button>
-        <button onclick="document.getElementById('imp').click()">استيراد ⬆</button>
+        <button onclick="$('imp').click()">استيراد ⬆</button>
       </div>
-      <input type="file" id="imp" accept=".json" class="hide" onchange="importData(this)">
+      <input type="file" id="imp" accept=".json,application/json" class="hide" onchange="importData(this)">
       <button class="g w del" style="margin-top:10px" onclick="resetAll()">مسح كل البيانات</button>
     </div>
   </section>
 </main>
+
+<div id="rest" class="hide">
+  <div class="t" id="rest-t">0:00</div>
+  <div class="rb"><i id="rest-b"></i></div>
+  <button class="sm" onclick="restAdd(-15)">−15</button>
+  <button class="sm" onclick="restAdd(15)">+15</button>
+  <button class="sm g" onclick="restStop()">✕</button>
+</div>
+
+<dialog id="sheet" onclick="if(event.target===this)closeSheet()"><div class="sheet" id="sheet-c"></div></dialog>
 
 <nav>
   <button data-v="home" class="on" onclick="go('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8v10H3z"/></svg>اليوم</button>
@@ -250,331 +358,7 @@ svg.chart{width:100%;height:180px;display:block}
 </nav>
 <div class="toast" id="toast"></div>
 
-<script>
-// ---------- البيانات ----------
-const KEY = 'gym-data-v1';
-const DEF = () => ({
-  profile: { h: 173, w: 83, bf: 20, act: 1.55, goal: -250 },
-  workouts: [], meals: [], weights: [], draft: null
-});
-let S;
-try { S = Object.assign(DEF(), JSON.parse(localStorage.getItem(KEY)) || {}); } catch { S = DEF(); }
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
-
-// برنامج Push/Pull/Legs خمس أيام — تركيز زيادة على الدراع والكتف (يومين إضافيين يشتغلوا عليهم)
-const PROGRAM = {
-  'Push': ['Flat DB Press', 'Incline DB Press', 'Seated DB Shoulder Press', 'Lateral Raise', 'Triceps Pushdown', 'Overhead Triceps Extension'],
-  'Pull': ['Lat Pulldown', 'Barbell Row', 'Seated Cable Row', 'Rear Delt Fly', 'Barbell Curl', 'Hammer Curl'],
-  'Legs': ['Squat', 'Romanian Deadlift', 'Leg Press', 'Leg Curl', 'Calf Raise', 'Cable Crunch'],
-  'Shoulders & Arms': ['Overhead Press', 'Lateral Raise', 'Face Pull', 'EZ Bar Curl', 'Close Grip Bench Press', 'Incline DB Curl', 'Skull Crusher'],
-  'Upper': ['Incline DB Press', 'Pull Up', 'Chest Supported Row', 'Cable Lateral Raise', 'Preacher Curl', 'Dips', 'Cable Curl']
-};
-const PLAN_DAYS = { 6: 'Push', 0: 'Pull', 1: 'Legs', 3: 'Shoulders & Arms', 4: 'Upper' }; // سبت، حد، اتنين، أربع، خميس — راحة تلات وجمعة
-
-// نظام أكل رخيص (حوالي 2450 سعرة و175 جم بروتين) — أكل مصري متاح
-const MEAL_PLAN = [
-  { t: 'الفطار', name: '4 بيض + رغيف بلدي + طبق فول صغير', kcal: 700, pro: 42 },
-  { t: 'الغدا', name: '250جم صدور فراخ + كوباية ونص رز + سلطة', kcal: 650, pro: 62 },
-  { t: 'سناك', name: '200جم جبنة قريش + خيار + موزتين', kcal: 410, pro: 26 },
-  { t: 'العشا', name: 'علبة تونة + رغيف بلدي + سلطة', kcal: 500, pro: 35 },
-  { t: 'قبل النوم', name: 'كوباية لبن كبيرة', kcal: 190, pro: 10 }
-];
-
-// ---------- أدوات ----------
-const $ = id => document.getElementById(id);
-const pad = n => String(n).padStart(2, '0');
-const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const today = () => iso(new Date());
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const fmtDay = s => new Date(s + 'T00:00').toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' });
-const e1rm = (w, r) => r > 0 ? w * (1 + r / 30) : 0; // Epley
-const toast = m => { const t = $('toast'); t.textContent = m; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 1500); };
-const pct = (a, b) => Math.min(100, b ? a / b * 100 : 0) + '%';
-
-function targets() {
-  const p = S.profile, lbm = p.w * (1 - p.bf / 100);
-  const bmr = 370 + 21.6 * lbm;           // Katch-McArdle
-  const tdee = bmr * p.act;
-  return { lbm, bmr, tdee, kcal: Math.round((tdee + +p.goal) / 50) * 50, pro: Math.round(lbm * 2.2 / 5) * 5 };
-}
-
-// ---------- التنقل ----------
-const TITLES = { home: 'اليوم', work: 'التمرين', food: 'الأكل', prog: 'التقدم', set: 'الإعدادات' };
-function go(v) {
-  for (const k in TITLES) $('v-' + k).classList.toggle('hide', k !== v);
-  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
-  $('title').textContent = TITLES[v];
-  ({ home: renderHome, work: renderWork, food: renderFood, prog: renderProg, set: renderSet })[v]();
-  scrollTo(0, 0);
-}
-
-// ---------- اليوم ----------
-function dayTotals(d) {
-  return S.meals.filter(m => m.date === d).reduce((a, m) => ({ k: a.k + (+m.kcal || 0), p: a.p + (+m.pro || 0) }), { k: 0, p: 0 });
-}
-function renderHome() {
-  const t = targets(), d = today(), tot = dayTotals(d);
-  $('sub').textContent = fmtDay(d);
-  $('h-kcal').textContent = tot.k; $('h-kcal-t').textContent = `من ${t.kcal} سعرة`; $('h-kcal-b').style.width = pct(tot.k, t.kcal);
-  $('h-pro').textContent = tot.p; $('h-pro-t').textContent = `من ${t.pro} جم بروتين`; $('h-pro-b').style.width = pct(tot.p, t.pro);
-
-  const done = S.workouts.find(w => w.date === d);
-  const planned = PLAN_DAYS[new Date().getDay()];
-  $('h-work').innerHTML = done
-    ? `<p style="margin:0">✅ خلصت <b>${esc(done.name)}</b> — ${done.ex.length} تمارين</p>`
-    : planned
-      ? `<p style="margin:0 0 10px">النهارده: <b class="acc">${planned}</b></p><button class="p w" onclick="startTpl('${planned}')">ابدأ التمرين</button>`
-      : `<p class="mute" style="margin:0 0 10px">يوم راحة 😴 — امشي 8-10 آلاف خطوة</p><button class="w" onclick="go('work')">تمرين على أي حال</button>`;
-
-  const last = S.weights.at(-1);
-  $('h-wlast').textContent = last ? `آخر وزن: ${last.w} كجم (${fmtDay(last.date)})` : 'سجّل وزنك كل يوم الصبح على الريق';
-
-  $('h-tips').innerHTML = [
-    `كُل ${t.pro} جم بروتين يومياً عشان تحافظ على العضل وانت بتنشف.`,
-    `هدف السعرات ${t.kcal} — نزول 0.5-0.75 كجم في الأسبوع ممتاز.`,
-    'زوّد الوزن أو العدات كل أسبوع لو قدرت (Progressive Overload).',
-    '3-4 مجموعات لكل تمرين، 8-12 عدة للدراع والكتف، ووقّف قبل الفشل بعدة أو اتنين.',
-    'الجدول: سبت Push · حد Pull · اتنين Legs · أربع كتف ودراع · خميس Upper · تلات وجمعة راحة.',
-    'نام 7-8 ساعات واشرب 3 لتر مية.'
-  ].map(x => `<li>${x}</li>`).join('');
-}
-function addWeight() {
-  const w = parseFloat($('h-w').value);
-  if (!w) return;
-  const d = today();
-  S.weights = S.weights.filter(x => x.date !== d);
-  S.weights.push({ date: d, w });
-  S.weights.sort((a, b) => a.date.localeCompare(b.date));
-  S.profile.w = w;
-  save(); $('h-w').value = ''; toast('تم تسجيل الوزن'); renderHome();
-}
-
-// ---------- التمرين ----------
-function allExNames() {
-  const s = new Set(Object.values(PROGRAM).flat());
-  S.workouts.forEach(w => w.ex.forEach(e => s.add(e.n)));
-  return [...s].sort();
-}
-function lastFor(name) {
-  for (let i = S.workouts.length - 1; i >= 0; i--) {
-    const e = S.workouts[i].ex.find(x => x.n === name);
-    if (e) return e.sets;
-  }
-  return null;
-}
-function newDraft(name = '', exs = []) {
-  S.draft = {
-    name, date: today(),
-    ex: exs.map(n => {
-      const prev = lastFor(n);
-      const sets = prev ? prev.map(s => ({ w: s.w, r: s.r, ok: false })) : [{ w: '', r: '', ok: false }, { w: '', r: '', ok: false }, { w: '', r: '', ok: false }];
-      return { n, sets };
-    })
-  };
-  save();
-}
-function startTpl(k) { newDraft(k, PROGRAM[k]); go('work'); }
-
-function renderWork() {
-  $('sub').textContent = 'Push / Pull / Legs — 5 أيام · تركيز دراع وكتف';
-  if (!S.draft) newDraft();
-  const D = S.draft;
-  $('w-tpl').innerHTML = Object.keys(PROGRAM).map(k => `<button class="chip ${D.name === k ? 'on' : ''}" onclick="pickTpl('${k}')">${k}</button>`).join('')
-    + `<button class="chip" onclick="pickTpl('')">فاضي</button>`;
-  $('w-name').value = D.name; $('w-date').value = D.date;
-  $('ex-list').innerHTML = allExNames().map(n => `<option value="${esc(n)}">`).join('');
-  $('w-ex').innerHTML = D.ex.length ? D.ex.map((e, i) => {
-    const prev = lastFor(e.n);
-    return `<div class="ex">
-      <div class="ex-h"><b>${esc(e.n)}</b><button class="g del" onclick="rmEx(${i})">✕</button></div>
-      ${prev ? `<div class="mute">آخر مرة: ${prev.map(s => `${s.w}×${s.r}`).join(' · ')}</div>` : ''}
-      <div class="set mute" style="margin-top:4px"><span></span><span style="text-align:center">كجم</span><span style="text-align:center">عدات</span><span></span></div>
-      ${e.sets.map((s, j) => `<div class="set ${s.ok ? 'done' : ''}">
-        <span class="n">${j + 1}</span>
-        <input type="number" step="0.5" inputmode="decimal" value="${s.w}" onchange="setVal(${i},${j},'w',this.value)">
-        <input type="number" inputmode="numeric" value="${s.r}" onchange="setVal(${i},${j},'r',this.value)">
-        <button class="tick" onclick="tick(${i},${j})">✓</button>
-      </div>`).join('')}
-      <div class="row"><button class="g" onclick="addSet(${i})">+ مجموعة</button><button class="g" onclick="rmSet(${i})">− مجموعة</button></div>
-    </div>`;
-  }).join('') : '<p class="mute" style="margin:0">اختار يوم من البرنامج فوق أو أضف تمارين بنفسك.</p>';
-
-  $('w-hist').innerHTML = S.workouts.slice(-15).reverse().map(w => {
-    const vol = w.ex.reduce((a, e) => a + e.sets.reduce((b, s) => b + s.w * s.r, 0), 0);
-    return `<li><div><b>${esc(w.name || 'تمرين')}</b><div class="mute">${fmtDay(w.date)} · ${w.ex.length} تمارين · ${Math.round(vol)} كجم حجم</div></div>
-      <button class="g del" onclick="rmWorkout('${w.id}')">✕</button></li>`;
-  }).join('') || '<li class="mute">لسه مفيش تمارين متسجلة</li>';
-}
-function pickTpl(k) {
-  if (S.draft.ex.some(e => e.sets.some(s => s.ok)) && !confirm('هتمسح التمرين الحالي؟')) return;
-  newDraft(k, PROGRAM[k] || []); renderWork();
-}
-function syncHead() { S.draft.name = $('w-name').value.trim(); S.draft.date = $('w-date').value || today(); }
-function setVal(i, j, f, v) { syncHead(); S.draft.ex[i].sets[j][f] = v === '' ? '' : +v; save(); }
-function tick(i, j) { syncHead(); const s = S.draft.ex[i].sets[j]; s.ok = !s.ok; save(); renderWork(); }
-function addSet(i) { syncHead(); const ss = S.draft.ex[i].sets, l = ss.at(-1) || { w: '', r: '' }; ss.push({ w: l.w, r: l.r, ok: false }); save(); renderWork(); }
-function rmSet(i) { syncHead(); if (S.draft.ex[i].sets.length > 1) S.draft.ex[i].sets.pop(); save(); renderWork(); }
-function rmEx(i) { syncHead(); S.draft.ex.splice(i, 1); save(); renderWork(); }
-function addEx() {
-  const n = $('w-new').value.trim(); if (!n) return;
-  syncHead();
-  const prev = lastFor(n);
-  S.draft.ex.push({ n, sets: prev ? prev.map(s => ({ w: s.w, r: s.r, ok: false })) : [{ w: '', r: '', ok: false }] });
-  $('w-new').value = ''; save(); renderWork();
-}
-function saveWorkout() {
-  syncHead();
-  const ex = S.draft.ex.map(e => ({ n: e.n, sets: e.sets.filter(s => +s.r > 0).map(s => ({ w: +s.w || 0, r: +s.r })) })).filter(e => e.sets.length);
-  if (!ex.length) return toast('سجّل مجموعة واحدة على الأقل');
-  S.workouts.push({ id: uid(), date: S.draft.date, name: S.draft.name || 'تمرين', ex });
-  S.workouts.sort((a, b) => a.date.localeCompare(b.date));
-  S.draft = null; save(); toast('تم حفظ التمرين 💪'); renderWork();
-}
-function rmWorkout(id) {
-  if (!confirm('امسح التمرين ده؟')) return;
-  S.workouts = S.workouts.filter(w => w.id !== id); save(); renderWork();
-}
-
-// ---------- الأكل ----------
-function shiftDay(n) { const d = new Date(($('f-date').value || today()) + 'T00:00'); d.setDate(d.getDate() + n); $('f-date').value = iso(d); renderFood(); }
-function frequentMeals() {
-  const m = new Map();
-  S.meals.forEach(x => { const c = m.get(x.name) || { ...x, c: 0 }; c.c++; c.kcal = x.kcal; c.pro = x.pro; m.set(x.name, c); });
-  return [...m.values()].sort((a, b) => b.c - a.c);
-}
-function renderFood() {
-  $('sub').textContent = 'سجّل كل اللي بتاكله';
-  if (!$('f-date').value) $('f-date').value = today();
-  const d = $('f-date').value, t = targets(), tot = dayTotals(d);
-  $('f-kcal').textContent = tot.k; $('f-kcal-t').textContent = `من ${t.kcal} سعرة · باقي ${Math.max(0, t.kcal - tot.k)}`; $('f-kcal-b').style.width = pct(tot.k, t.kcal);
-  $('f-pro').textContent = tot.p; $('f-pro-t').textContent = `من ${t.pro} جم بروتين`; $('f-pro-b').style.width = pct(tot.p, t.pro);
-  const fm = frequentMeals();
-  $('meal-list').innerHTML = fm.map(m => `<option value="${esc(m.name)}">`).join('');
-  $('m-quick').innerHTML = fm.slice(0, 8).map((m, i) => `<button class="chip" onclick="quickMeal(${i})">+ ${esc(m.name)}</button>`).join('');
-  const eaten = new Set(S.meals.filter(m => m.date === d).map(m => m.name));
-  $('m-plan').innerHTML = MEAL_PLAN.map((m, i) => `<li><div><b>${m.t}</b><div class="mute">${m.name} · ${m.kcal} سعرة · ${m.pro} جم</div></div>
-    <button class="${eaten.has(m.name) ? 'p' : ''}" style="flex:0 0 auto" onclick="planMeal(${i})">${eaten.has(m.name) ? '✓' : '+'}</button></li>`).join('');
-  $('m-list').innerHTML = S.meals.filter(m => m.date === d).map(m =>
-    `<li><div><b>${esc(m.name)}</b><div class="mute">${m.kcal} سعرة · ${m.pro} جم بروتين</div></div><button class="g del" onclick="rmMeal('${m.id}')">✕</button></li>`
-  ).join('') || '<li class="mute">مفيش وجبات لليوم ده</li>';
-}
-function fillMeal() {
-  const m = frequentMeals().find(x => x.name === $('m-name').value);
-  if (m) { $('m-kcal').value = m.kcal; $('m-pro').value = m.pro; }
-}
-function addMeal() {
-  const name = $('m-name').value.trim(), kcal = +$('m-kcal').value || 0, pro = +$('m-pro').value || 0;
-  if (!name || (!kcal && !pro)) return toast('اكتب الوجبة والسعرات');
-  S.meals.push({ id: uid(), date: $('f-date').value || today(), name, kcal, pro });
-  $('m-name').value = $('m-kcal').value = $('m-pro').value = '';
-  save(); toast('تمت الإضافة'); renderFood();
-}
-function quickMeal(i) {
-  const m = frequentMeals()[i];
-  S.meals.push({ id: uid(), date: $('f-date').value || today(), name: m.name, kcal: m.kcal, pro: m.pro });
-  save(); toast('تمت الإضافة'); renderFood();
-}
-function planMeal(i) {
-  const m = MEAL_PLAN[i], d = $('f-date').value || today();
-  const had = S.meals.find(x => x.date === d && x.name === m.name);
-  if (had) S.meals = S.meals.filter(x => x !== had);
-  else S.meals.push({ id: uid(), date: d, name: m.name, kcal: m.kcal, pro: m.pro });
-  save(); renderFood();
-}
-function rmMeal(id) { S.meals = S.meals.filter(m => m.id !== id); save(); renderFood(); }
-
-// ---------- التقدم ----------
-function lineChart(pts, unit) {
-  if (pts.length < 2) return '<p class="mute" style="margin:0">محتاج تسجيلين على الأقل عشان يظهر الرسم.</p>';
-  const W = 320, H = 170, P = 26;
-  const ys = pts.map(p => p.y), lo = Math.min(...ys), hi = Math.max(...ys), span = hi - lo || 1;
-  const x = i => P + i * (W - P * 2) / (pts.length - 1);
-  const y = v => H - P - (v - lo) / span * (H - P * 2);
-  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.y).toFixed(1)}`).join('');
-  const area = `${path}L${x(pts.length - 1)},${H - P}L${x(0)},${H - P}Z`;
-  const last = pts.length - 1;
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="direction:ltr">
-    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c6f432" stop-opacity=".25"/><stop offset="1" stop-color="#c6f432" stop-opacity="0"/></linearGradient></defs>
-    <line x1="${P}" x2="${W - P}" y1="${y(hi)}" y2="${y(hi)}" stroke="#24272c" stroke-dasharray="3 4"/>
-    <line x1="${P}" x2="${W - P}" y1="${y(lo)}" y2="${y(lo)}" stroke="#24272c" stroke-dasharray="3 4"/>
-    <text x="2" y="${y(hi) + 4}" fill="#8a9099" font-size="10">${+hi.toFixed(1)}</text>
-    <text x="2" y="${y(lo) + 4}" fill="#8a9099" font-size="10">${+lo.toFixed(1)}</text>
-    <path d="${area}" fill="url(#g)"/>
-    <path d="${path}" fill="none" stroke="#c6f432" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-    <circle cx="${x(last)}" cy="${y(pts[last].y)}" r="4" fill="#c6f432"/>
-    <text x="${P}" y="${H - 6}" fill="#8a9099" font-size="10">${pts[0].d.slice(5)}</text>
-    <text x="${W - P}" y="${H - 6}" fill="#8a9099" font-size="10" text-anchor="end">${pts[last].d.slice(5)} · ${+pts[last].y.toFixed(1)} ${unit}</text>
-  </svg>`;
-}
-function exHistory(name) {
-  return S.workouts.map(w => {
-    const e = w.ex.find(x => x.n === name);
-    return e && { d: w.date, y: Math.max(...e.sets.map(s => e1rm(s.w, s.r))) };
-  }).filter(Boolean);
-}
-function renderProg() {
-  $('sub').textContent = 'شوف اتحسنت قد إيه';
-  const ws = S.weights;
-  $('p-w').textContent = ws.length ? ws.at(-1).w : S.profile.w;
-  if (ws.length > 1) {
-    const d = +(ws.at(-1).w - ws[0].w).toFixed(1);
-    $('p-d').textContent = (d > 0 ? '+' : '') + d;
-    $('p-d').style.color = d <= 0 ? 'var(--acc)' : 'var(--warn)';
-  }
-  const since = iso(new Date(Date.now() - 30 * 864e5));
-  $('p-n').textContent = S.workouts.filter(w => w.date >= since).length;
-  $('p-wchart').innerHTML = lineChart(ws.map(x => ({ d: x.date, y: x.w })), 'كجم');
-
-  const names = [...new Set(S.workouts.flatMap(w => w.ex.map(e => e.n)))];
-  const cur = $('p-ex').value;
-  $('p-ex').innerHTML = names.map(n => `<option ${n === cur ? 'selected' : ''}>${esc(n)}</option>`).join('') || '<option>لسه مفيش تمارين</option>';
-  renderExChart();
-
-  $('p-prs').innerHTML = names.map(n => {
-    let best = null;
-    S.workouts.forEach(w => w.ex.filter(e => e.n === n).forEach(e => e.sets.forEach(s => { if (!best || s.w > best.w || (s.w === best.w && s.r > best.r)) best = s; })));
-    return `<li><span>${esc(n)}</span><b class="acc" style="direction:ltr">${best.w} kg × ${best.r}</b></li>`;
-  }).join('') || '<li class="mute">سجّل تمارينك وهتظهر أرقامك هنا</li>';
-}
-function renderExChart() { $('p-exchart').innerHTML = lineChart(exHistory($('p-ex').value), 'كجم'); }
-
-// ---------- الإعدادات ----------
-function renderSet() {
-  $('sub').textContent = '';
-  const p = S.profile, t = targets();
-  $('s-h').value = p.h; $('s-w').value = p.w; $('s-bf').value = p.bf; $('s-act').value = p.act; $('s-goal').value = p.goal;
-  $('s-calc').innerHTML = `
-    <div class="stat"><b class="acc">${t.kcal}</b><span>سعرة / يوم</span></div>
-    <div class="stat"><b style="color:var(--blue)">${t.pro}</b><span>جم بروتين</span></div>
-    <div class="stat"><b>${Math.round(t.tdee)}</b><span>حرق يومي</span></div>`;
-  const bmi = p.w / (p.h / 100) ** 2;
-  $('s-note').textContent = `الكتلة الصافية ≈ ${t.lbm.toFixed(1)} كجم · BMI ${bmi.toFixed(1)} · الحساب بمعادلة Katch-McArdle على نسبة الدهون.`;
-}
-function saveProfile() {
-  S.profile = { h: +$('s-h').value || 173, w: +$('s-w').value || 83, bf: +$('s-bf').value || 20, act: +$('s-act').value, goal: +$('s-goal').value };
-  save(); toast('تم الحفظ'); renderSet();
-}
-function exportData() {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(S, null, 1)], { type: 'application/json' }));
-  a.download = `gym-backup-${today()}.json`; a.click();
-}
-function importData(inp) {
-  const f = inp.files[0]; if (!f) return;
-  f.text().then(t => {
-    try { const d = JSON.parse(t); if (!d.workouts) throw 0; S = Object.assign(DEF(), d); save(); toast('تم الاستيراد'); go('home'); }
-    catch { toast('الملف ده مش صالح'); }
-  });
-  inp.value = '';
-}
-function resetAll() {
-  if (!confirm('متأكد؟ كل التمارين والوجبات هتتمسح.')) return;
-  S = DEF(); save(); go('home');
-}
-
-go('home');
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
-</script>
+<script src="data.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
