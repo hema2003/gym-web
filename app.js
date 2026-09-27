@@ -541,14 +541,15 @@ function exSheet(i) {
   openSheet(`<div class="grip"></div><h3>${esc(X.ar)}</h3><p class="mute" style="margin:0 0 10px">${esc(X.n)}${X.m ? ` · ${(MUSCLES[X.m] || 'كارديو')}` : ''}${(X.sec || []).length ? ' + ' + X.sec.map(m => MUSCLES[m]).join('، ') : ''}</p>
     <label for="ex-note" style="margin-top:4px">📝 ملاحظة ثابتة للتمرين ده (رقم الكرسي، المسكة، الجهاز…)</label>
     <textarea id="ex-note" rows="2" style="width:100%;background:var(--surface-2);color:var(--ink);border:1px solid transparent;border-radius:var(--r-sm);padding:10px;font:inherit;margin-bottom:10px" onchange="saveExNote('${e.id}', this.value);renderWork()" placeholder="مثلًا: الكرسي على رقم 4">${esc(exNote(e.id))}</textarea>
-    ${howTo(e.id, i).replace('<details class="how"', '<details class="how" open')}
+    ${howTo(e.id, i)}
     <h2 class="mute" style="font-size:13px;margin:12px 0 4px">آخر مرات</h2>
     <ul class="list">${hist.map(w => { const x = w.ex.find(y => y.id === e.id); return `<li><span class="mute">${fmtShort(w.date)}</span><span class="ltr">${isCardio(e.id) ? x.sets.map(s => `${s.r} د`).join('  ') : x.sets.map(s => `${s.w}×${s.r}`).join('  ')}</span></li>`; }).join('') || '<li class="mute">لسه</li>'}</ul>
     ${alts.length ? `<h2 class="mute" style="font-size:13px;margin:12px 0 6px">بدّل بتمرين تاني لنفس العضلة</h2><div class="chips" style="flex-wrap:wrap">${alts.map(([id, x]) => `<button class="chip" onclick="swapEx(${i},'${id}')">${esc(x.ar)}</button>`).join('')}</div>` : ''}
     <div class="row" style="margin-top:14px">
       <button onclick="moveEx(${i},-1)">↑ لفوق</button><button onclick="moveEx(${i},1)">↓ لتحت</button>
       <button class="del" onclick="rmEx(${i})">مسح</button>
-    </div>`);
+    </div>
+    <button class="p w" style="margin-top:10px" onclick="closeSheet()">تمام</button>`);
 }
 function swapEx(i, id) { const n = S.draft.ex[i].sets.length; S.draft.ex[i] = makeEx(id, n, S.draft.deload, false); save(); closeSheet(); renderWork(); }
 function moveEx(i, d) { const a = S.draft.ex, j = i + d; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; save(); closeSheet(); renderWork(); }
@@ -984,7 +985,21 @@ function resetAll() {
 }
 
 // ================= شيت =================
-function openSheet(h) { $('sheet-c').innerHTML = h; const d = $('sheet'); if (!d.open) { d.showModal(); history.pushState({ v: view, sheet: 1 }, ''); } }
+// كل نافذة ليها زرار قفل ثابت فوق، وتقدر تقفلها بسحبها لتحت أو بزرار الرجوع
+function openSheet(h) {
+  const c = $('sheet-c'), keep = c.scrollTop, same = $('sheet').open;
+  c.innerHTML = `<button class="sheet-x" onclick="closeSheet()" aria-label="اقفل">✕</button>` + h.replace('<div class="grip"></div>', '<div class="grip" onclick="closeSheet()"></div>');
+  const d = $('sheet');
+  if (!d.open) { d.showModal(); history.pushState({ v: view, sheet: 1 }, ''); c.scrollTop = 0; }
+  else if (same) c.scrollTop = keep;
+}
+// السحب لتحت يقفل النافذة (لما تكون في أولها)
+(() => {
+  const c = $('sheet-c'); let y0 = null, dy = 0;
+  c.addEventListener('touchstart', e => { y0 = c.scrollTop <= 0 ? e.touches[0].clientY : null; dy = 0; }, { passive: true });
+  c.addEventListener('touchmove', e => { if (y0 == null) return; dy = e.touches[0].clientY - y0; if (dy > 0) c.style.transform = `translateY(${Math.min(dy, 200)}px)`; }, { passive: true });
+  c.addEventListener('touchend', () => { c.style.transform = ''; if (y0 != null && dy > 90) closeSheet(); y0 = null; });
+})();
 function closeSheet() {
   stopScan();
   const d = $('sheet'); if (!d.open) return;

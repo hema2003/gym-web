@@ -192,7 +192,9 @@ dialog[open] .sheet{animation:sheetUp .28s cubic-bezier(.2,.8,.2,1)}
   color:var(--ink);max-height:92vh;max-height:92dvh;overflow:auto}
 .sheet h3{font-family:var(--display);margin:0 0 4px;font-size:20px;font-weight:800}
 .sheet .card{background:var(--surface-2)}
-.grip{width:40px;height:4px;border-radius:9px;background:var(--line);margin:-6px auto 12px}
+.sheet-x{position:sticky;top:0;float:left;z-index:3;width:38px;height:38px;min-height:38px;padding:0;border-radius:99px;background:var(--surface-2);color:var(--ink);font-size:16px;margin:-6px -4px 0 0;box-shadow:0 2px 8px rgba(16,21,31,.12)}
+.sheet{transition:transform .15s}
+.grip{cursor:pointer;width:40px;height:4px;padding:10px 24px;box-sizing:content-box;border-radius:9px;background:var(--line) content-box;margin:-16px auto 2px}
 nav{position:fixed;bottom:0;inset-inline:0;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:6px 0 calc(6px + env(safe-area-inset-bottom));z-index:5}
 nav button{background:none;color:var(--ink-3);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;padding:4px 14px;font-weight:500}
