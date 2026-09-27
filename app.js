@@ -45,7 +45,8 @@ function migrate(s) {
   if (!s.profile.meso) s.profile.meso = weekStart(today());
   const byName = {};
   for (const id in EX) byName[EX[id].n] = id;
-  s.workouts.forEach(w => w.ex.forEach(e => { if (!e.id) e.id = byName[e.n] || 'x:' + e.n; }));
+  const alias = { db_shoulder: 'db_ohp', cable_lat: 'lat_raise', cs_row: 'db_row', preacher: 'conc_curl', cable_curl: 'rope_hammer', bss: 'split' };
+  s.workouts.forEach(w => w.ex.forEach(e => { if (!e.id) e.id = byName[e.n] || 'x:' + e.n; if (alias[e.id]) e.id = alias[e.id]; }));
   s.meals.forEach(m => { if (m.k == null) Object.assign(m, { k: +m.kcal || 0, p: +m.pro || 0, c: 0, f: 0, slot: 's' }); });
   if (s.draft && !s.draft.v2) s.draft = null;
   s.daily = s.daily || {}; s.meas = s.meas || []; s.v = 2;
@@ -131,16 +132,16 @@ function lastSession(id) {
 }
 function suggest(id) {
   const X = exInfo(id), [lo, hi] = X.rr, L = lastSession(id);
-  if (!L) return { w: '', r: lo, note: `أول مرة: اختار وزن تقدر تعمل بيه ${lo}-${hi} عدة وتفضل قادر على 2 زيادة` };
+  if (!L) return { w: '', r: lo, note: `أول مرة: اختار وزن تقدر تعمل بيه ${lo}-${hi} عدّة وتفضل قادر على 2 زيادة` };
   const top = Math.max(...L.sets.map(s => s.w));
   const ts = L.sets.filter(s => s.w === top);
   const minR = Math.min(...ts.map(s => s.r));
   if (ts.every(s => s.r >= hi)) {
     if (!X.inc) return { w: top, r: hi, up: true, note: 'وصلت لآخر النطاق، صعّبها: أبطأ أو زوّد وزن إضافي' };
-    return { w: num(top + X.inc), r: lo, up: true, note: `⬆ زوّد ${X.inc} كجم وارجع لـ ${lo} عدات` };
+    return { w: num(top + X.inc), r: lo, up: true, note: `⬆ زوّد ${X.inc} كجم وارجع لـ ${lo} عدّات` };
   }
   if (minR < lo) return { w: top, r: lo, note: `نفس الوزن، حاول توصل لـ ${lo} في كل المجموعات` };
-  return { w: top, r: Math.min(hi, minR + 1), note: 'نفس الوزن، زوّد عدة في كل مجموعة' };
+  return { w: top, r: Math.min(hi, minR + 1), note: 'نفس الوزن، زوّد عدّة في كل مجموعة' };
 }
 function makeEx(id, sets, deload, low) {
   const X = exInfo(id), g = suggest(id);
@@ -156,6 +157,31 @@ function buildDraft(key) {
     ex: P ? P.ex.map(([id, n]) => makeEx(id, n, deload, low)) : []
   };
   save();
+}
+// ===== الترتيب المرن: التمرين الجاي = اللي بعد آخر تمرين عملته فعلًا =====
+function lastProgramWorkout() { for (let i = S.workouts.length - 1; i >= 0; i--) if (ORDER.includes(S.workouts[i].key)) return S.workouts[i]; return null; }
+function nextKey() { const w = lastProgramWorkout(); return w ? ORDER[(ORDER.indexOf(w.key) + 1) % ORDER.length] : ORDER[0]; }
+const trainedOn = d => S.workouts.some(w => w.date === d);
+function restSuggested(d = today()) {
+  const y = S.workouts.filter(w => w.date === addDays(d, -1));
+  if (y.some(w => REST_AFTER.includes(w.key))) return true;
+  return [1, 2, 3].every(n => trainedOn(addDays(d, -n))); // 3 أيام ورا بعض
+}
+// توقّع الأسبوع: اللي فات من السجل الحقيقي، واللي جاي بيتحسب من مكانك في الترتيب
+function projectWeek(ws) {
+  const d = today(), out = [];
+  let cur = null, restNext = false, streak = 0;
+  for (let i = 0; i < 7; i++) {
+    const day = addDays(ws, i), done = S.workouts.filter(w => w.date === day);
+    if (day < d || done.length) { out.push({ day, done: done.length > 0, key: done.at(-1)?.key }); continue; }
+    if (cur === null) {
+      cur = nextKey(); restNext = restSuggested(day);
+      for (let n = 1; trainedOn(addDays(day, -n)); n++) streak = n;
+    }
+    if (restNext || streak >= 3) { out.push({ day, plan: true, rest: true }); restNext = false; streak = 0; }
+    else { out.push({ day, plan: true, key: cur }); restNext = REST_AFTER.includes(cur); streak++; cur = ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length]; }
+  }
+  return out;
 }
 const draftActive = () => S.draft && S.draft.ex.some(e => e.sets.some(s => s.ok));
 
@@ -179,13 +205,18 @@ function renderHome() {
   $('sub').textContent = fmtDay(d);
 
   const ws = weekStart(d);
-  $('h-week').innerHTML = WEEK_ORDER.map((_, i) => {
-    const day = addDays(ws, i), k = SCHEDULE[toDate(day).getDay()], done = S.workouts.some(w => w.date === day);
-    return `<div class="${done ? 'done' : ''} ${day === d ? 'today' : ''}"><b>${k ? SHORT[k] : '—'}</b>${DAY_AR[toDate(day).getDay()].replace('ال', '')}</div>`;
+  $('h-week').innerHTML = projectWeek(ws).map(x => {
+    const lbl = x.done ? (SHORT[x.key] || '✓') : x.rest ? 'راحة' : x.key ? SHORT[x.key] : '—';
+    return `<div class="${x.done ? 'done' : ''} ${x.plan ? 'plan' : ''} ${x.day === d ? 'today' : ''}"><b>${lbl}</b>${DAY_AR[toDate(x.day).getDay()].replace(/^ال/, '')}</div>`;
   }).join('');
 
   $('h-meso').innerHTML = wk === 5 ? '<span class="tag blue">Deload · أسبوع خفيف</span>' : `<span class="tag">أسبوع ${wk} من 4</span>`;
-  const done = S.workouts.filter(w => w.date === d), key = SCHEDULE[new Date().getDay()], P = PROGRAM[key];
+  const done = S.workouts.filter(w => w.date === d), key = nextKey(), P = PROGRAM[key], last = lastProgramWorkout();
+  const gap = last ? dayDiff(last.date, d) : 0;
+  const sets = P.ex.reduce((a, [, n]) => a + n, 0);
+  const planInfo = `<div style="margin-bottom:10px"><b style="font-size:20px">${P.name}</b> <span class="mute">${P.ar}</span>
+      <div class="mute">${P.ex.length} تمارين · ${sets} مجموعة · حوالي ${Math.round(sets * 2.6)} دقيقة</div>
+      ${last && gap > 1 ? `<div class="mute" style="margin-top:4px">آخر تمرين كان ${PROGRAM[last.key].name} من ${gap} أيام، فهنكمّل من بعده.</div>` : ''}</div>`;
   let h;
   if (draftActive()) {
     const n = S.draft.ex.reduce((a, e) => a + e.sets.filter(s => s.ok).length, 0);
@@ -193,13 +224,12 @@ function renderHome() {
   } else if (done.length) {
     const w = done.at(-1);
     h = `<p style="margin:0">✅ خلصت <b>${esc(w.name)}</b> · ${w.ex.length} تمارين${w.dur ? ` · ${w.dur} دقيقة` : ''}</p><p class="mute" style="margin:4px 0 0">ركّز على الأكل والنوم عشان تستشفى.</p>`;
-  } else if (P) {
-    const sets = P.ex.reduce((a, [, n]) => a + n, 0);
-    h = `<div style="margin-bottom:10px"><b style="font-size:20px">${P.name}</b> <span class="mute">${P.ar}</span>
-      <div class="mute">${P.ex.length} تمارين · ${sets} مجموعة · حوالي ${Math.round(sets * 2.6)} دقيقة</div></div>
-      <button class="p w" onclick="startTpl('${key}')">ابدأ التمرين</button>`;
+  } else if (restSuggested()) {
+    h = `<p style="margin:0 0 4px">😴 <b>النهارده يوم راحة مقترح.</b> الاستشفاء جزء من التمرين، فامشي 8-10 آلاف خطوة.</p>
+      <p class="mute" style="margin:0 0 10px">لو حابب تتمرن، التمرين اللي عليك: <b>${P.name}</b> (${P.ar}).</p>
+      <button class="w" onclick="startTpl('${key}')">اتمرن برضه</button>`;
   } else {
-    h = `<p style="margin:0 0 10px">يوم راحة 😴 امشي 8-10 آلاف خطوة، والراحة جزء من التمرين.</p><button class="w" onclick="go('work')">اختار تمرين برضه</button>`;
+    h = planInfo + `<button class="p w" onclick="startTpl('${key}')">ابدأ التمرين</button>`;
   }
   $('h-work').innerHTML = h;
 
@@ -268,7 +298,7 @@ function pickTpl(k) {
   buildDraft(k); renderWork();
 }
 function renderWork() {
-  if (!S.draft) buildDraft(SCHEDULE[new Date().getDay()] || '');
+  if (!S.draft) buildDraft(nextKey());
   const D = S.draft, P = PROGRAM[D.key];
   $('sub').textContent = 'Push · Pull · Legs · Arms · Upper';
   $('w-tpl').innerHTML = Object.entries(PROGRAM).map(([k, p]) => `<button class="chip ${D.key === k ? 'on' : ''}" onclick="pickTpl('${k}')">${p.name}</button>`).join('')
@@ -282,10 +312,11 @@ function renderWork() {
   $('w-ex').innerHTML = D.ex.length ? D.ex.map((e, i) => {
     const X = exInfo(e.id);
     return `<div class="ex">
-      <div class="ex-h"><div><b>${esc(X.ar)}</b><small>${esc(X.n)}${X.m ? ' · ' + MUSCLES[X.m] : ''} · ${X.rr[0]}-${X.rr[1]} عدة · راحة ${X.rest}ث</small></div>
-        <button class="g" onclick="exSheet(${i})" aria-label="تفاصيل">⋯</button></div>
+      <div class="ex-h"><div><b>${esc(X.ar)}</b><small class="ltr">${esc(X.n)}</small><small> · ${X.eq ? EQ[X.eq] + ' · ' : ''}${X.rr[0]}-${X.rr[1]} عدّة · راحة ${X.rest} ث</small></div>
+        <button class="g" onclick="exSheet(${i})" aria-label="خيارات التمرين">⋯</button></div>
+      ${howTo(e.id, i)}
       <div class="target"><span class="tag ${e.up ? 'acc' : 'blue'} ltr">🎯 ${e.tw !== '' ? e.tw + ' kg × ' : ''}${e.tr}</span><span class="mute">${e.note}</span></div>
-      <div class="set head"><span></span><span>كجم</span><span>عدات</span><span>RIR</span><span></span></div>
+      <div class="set head"><span></span><span>الوزن</span><span>العدّات</span><span>RIR</span><span></span></div>
       ${e.sets.map((s, j) => `<div class="set ${s.ok ? 'done' : ''}">
         <span class="n">${j + 1}</span>
         <input type="number" step="0.5" inputmode="decimal" value="${s.w}" onchange="setVal(${i},${j},'w',this.value)">
@@ -303,6 +334,16 @@ function renderWork() {
       <div class="mute">${fmtDay(w.date)} · ${w.ex.length} تمارين · ${sets} مجموعة${w.dur ? ` · ${w.dur}د` : ''}</div></div><span class="mute">←</span></li>`;
   }).join('') || '<li class="mute">لسه مفيش تمارين متسجلة</li>';
 }
+const openHow = new Set();
+function howTo(id, i) {
+  const X = EX[id]; if (!X) return '';
+  return `<details class="how" ${openHow.has(id) ? 'open' : ''} ontoggle="this.open?openHow.add('${id}'):openHow.delete('${id}')">
+    <summary>طريقة الأداء</summary>
+    <div class="how-img"><img src="img/${id}-0.jpg" alt="بداية الحركة" loading="lazy"><img src="img/${id}-1.jpg" alt="نهاية الحركة" loading="lazy"></div>
+    <ol>${X.steps.map(s => `<li>${s}</li>`).join('')}</ol>
+    <div class="banner" style="margin:8px 0 0">💡 ${X.cue}</div>
+  </details>`;
+}
 function updateMeta() {
   const D = S.draft; if (!D) return;
   const all = D.ex.reduce((a, e) => a + e.sets.length, 0), ok = D.ex.reduce((a, e) => a + e.sets.filter(s => s.ok).length, 0);
@@ -315,11 +356,11 @@ function setVal(i, j, f, v) { S.draft.ex[i].sets[j][f] = v === '' ? '' : +v; sav
 function cycleRir(i, j) { const s = S.draft.ex[i].sets[j]; s.rir = s.rir == null ? 3 : s.rir === 0 ? null : s.rir - 1; save(); vib(5); renderWork(); }
 function tick(i, j) {
   const e = S.draft.ex[i], s = e.sets[j];
-  if (!s.ok && !(+s.r > 0)) return toast('اكتب العدات الأول');
+  if (!s.ok && !(+s.r > 0)) return toast('اكتب العدّات الأول');
   if (!s.ok && !draftActive()) S.draft.start = Date.now();
   s.ok = !s.ok;
   if (s.ok) {
-    // الوزن والعدات بيتنقلوا للمجموعة الجاية لو لسه متعملتش
+    // الوزن والعدّات بيتنقلوا للمجموعة الجاية لو لسه متعملتش
     const nx = e.sets[j + 1]; if (nx && !nx.ok) { nx.w = s.w; }
     startRest(exInfo(e.id).rest); vib(15);
   }
@@ -355,7 +396,7 @@ function exSheet(i) {
   const hist = S.workouts.filter(w => w.ex.some(x => x.id === e.id)).slice(-4).reverse();
   const alts = Object.entries(EX).filter(([id, x]) => x.m && x.m === X.m && id !== e.id && !S.draft.ex.some(y => y.id === id));
   openSheet(`<div class="grip"></div><h3>${esc(X.ar)}</h3><p class="mute" style="margin:0 0 10px">${esc(X.n)}${X.m ? ` · ${MUSCLES[X.m]}` : ''}${(X.sec || []).length ? ' + ' + X.sec.map(m => MUSCLES[m]).join('، ') : ''}</p>
-    ${X.cue ? `<div class="banner">💡 ${X.cue}</div>` : ''}
+    ${howTo(e.id, i).replace('<details class="how"', '<details class="how" open')}
     <h2 class="mute" style="font-size:13px;margin:12px 0 4px">آخر مرات</h2>
     <ul class="list">${hist.map(w => { const x = w.ex.find(y => y.id === e.id); return `<li><span class="mute">${fmtShort(w.date)}</span><span class="ltr">${x.sets.map(s => `${s.w}×${s.r}`).join('  ')}</span></li>`; }).join('') || '<li class="mute">لسه</li>'}</ul>
     ${alts.length ? `<h2 class="mute" style="font-size:13px;margin:12px 0 6px">بدّل بتمرين تاني لنفس العضلة</h2><div class="chips" style="flex-wrap:wrap">${alts.map(([id, x]) => `<button class="chip" onclick="swapEx(${i},'${id}')">${esc(x.ar)}</button>`).join('')}</div>` : ''}
@@ -380,7 +421,7 @@ function renderPicker() {
   let h = '';
   for (const m in MUSCLES) {
     const g = items.filter(([, x]) => x.m === m);
-    if (g.length) h += `<div class="mute" style="margin:10px 0 2px">${MUSCLES[m]}</div>` + g.map(([id, x]) => `<div class="food-it" onclick="pickEx('${id}')"><span>${esc(x.ar)}</span><span class="mute ltr">${esc(x.n)}</span></div>`).join('');
+    if (g.length) h += `<div class="mute" style="margin:10px 0 2px">${MUSCLES[m]}</div>` + g.map(([id, x]) => `<div class="food-it" onclick="pickEx('${id}')"><span>${esc(x.ar)} <span class="tag">${EQ[x.eq]}</span></span><span class="mute ltr">${esc(x.n)}</span></div>`).join('');
   }
   if (q) h += `<button class="w" style="margin-top:10px" onclick="pickEx('x:'+$('pk-q').value.trim())">+ ضيف "${esc($('pk-q').value.trim())}" كتمرين جديد</button>`;
   $('pk-l').innerHTML = h;
@@ -433,11 +474,14 @@ function beep() {
 // ================= الأكل =================
 const foodById = id => FOODS.find(f => f.id === id);
 const macrosOf = (f, q) => { const m = q / f.b; return { k: Math.round(f.k * m), p: num(f.p * m), c: num(f.c * m), f: num(f.f * m) }; };
-const itemLabel = (f, q) => f.u === 'جم' ? `${f.n} ${q}جم` : `${f.n} ×${q}`;
-function planMacros(pm) {
-  return pm.items.reduce((a, [id, q]) => { const m = macrosOf(foodById(id), q); return { k: a.k + m.k, p: a.p + m.p, c: a.c + m.c, f: a.f + m.f }; }, { k: 0, p: 0, c: 0, f: 0 });
-}
-const planName = pm => pm.items.map(([id, q]) => itemLabel(foodById(id), q)).join(' + ');
+const qtyLabel = (f, q) => f.u === 'جم' ? `${q} جم` : `${q} ${f.u}`;
+const itemLabel = (f, q) => f.u === 'جم' ? `${f.n} ${q} جم` : `${f.n} ×${q}`;
+// عنصر الوجبة: {id, q} من قاعدّة الأكل أو {c:{n,k,p,c,f}} إدخال يدوي
+const itemMacros = it => it.c ? { k: +it.c.k || 0, p: +it.c.p || 0, c: +it.c.c || 0, f: +it.c.f || 0 } : macrosOf(foodById(it.id), it.q);
+const itemName = it => it.c ? it.c.n : itemLabel(foodById(it.id), it.q);
+const sumMacros = items => items.map(itemMacros).reduce((a, m) => ({ k: a.k + m.k, p: num(a.p + m.p), c: num(a.c + m.c), f: num(a.f + m.f) }), { k: 0, p: 0, c: 0, f: 0 });
+const planItems = pm => pm.items.map(([id, q]) => ({ id, q }));
+const planName = pm => planItems(pm).map(itemName).join(' + ');
 const fDate = () => $('f-date').value || today();
 function shiftDay(n) { $('f-date').value = addDays(fDate(), n); renderFood(); }
 function defaultSlot() { const h = new Date().getHours(); return h < 11 ? 'b' : h < 17 ? 'l' : h < 22 ? 'd' : 's'; }
@@ -446,90 +490,136 @@ function renderFood() {
   if (!$('f-date').value) $('f-date').value = today();
   const d = fDate(), t = targets(), tot = mealTotals(d);
   $('sub').textContent = d === today() ? 'النهارده' : fmtDay(d);
-  const mk = (v, tg, l, c) => `<div class="stat"><b style="color:${c}">${Math.round(v)}</b><span>${l} / ${tg}</span><div class="bar" style="--c:${c}"><i style="width:${pct(v, tg)}"></i></div></div>`;
+  const mk = (v, tg, l, c) => `<div class="stat"><b style="color:${c}">${Math.round(v)}</b><span>${l}<br>من ${tg}</span><div class="bar" style="--c:${c}"><i style="width:${pct(v, tg)}"></i></div></div>`;
   $('f-macro').innerHTML = mk(tot.k, t.kcal, 'سعرات', 'var(--acc)') + mk(tot.p, t.pro, 'بروتين', 'var(--blue)') + mk(tot.c, t.carb, 'كارب', 'var(--amber)') + mk(tot.f, t.fat, 'دهون', 'var(--pink)');
+  $('f-sugg').innerHTML = foodSuggestion(d, t, tot);
 
   const seen = new Set(), recent = [];
-  for (let i = S.meals.length - 1; i >= 0 && recent.length < 10; i--) { const m = S.meals[i]; if (!seen.has(m.name)) { seen.add(m.name); recent.push(m); } }
-  $('f-quick').innerHTML = recent.map((m, i) => `<button class="chip" onclick="reAdd(${S.meals.indexOf(m)})">+ ${esc(m.name.length > 28 ? m.name.slice(0, 26) + '…' : m.name)}</button>`).join('');
+  for (let i = S.meals.length - 1; i >= 0 && recent.length < 10; i--) { const m = S.meals[i]; if (!seen.has(m.name)) { seen.add(m.name); recent.push(i); } }
+  $('f-quick').innerHTML = recent.map(i => { const n = S.meals[i].name; return `<button class="chip" onclick="reAdd(${i})">+ ${esc(n.length > 28 ? n.slice(0, 26) + '…' : n)}</button>`; }).join('');
 
   const eaten = new Set(S.meals.filter(m => m.date === d).map(m => m.name));
-  const all = MEAL_PLAN.map(planMacros).reduce((a, m) => ({ k: a.k + m.k, p: a.p + m.p }), { k: 0, p: 0 });
-  $('f-plan-t').textContent = `≈ ${all.k} سعرة · ${Math.round(all.p)} بروتين`;
+  const all = MEAL_PLAN.reduce((a, pm) => { const m = sumMacros(planItems(pm)); return { k: a.k + m.k, p: a.p + m.p }; }, { k: 0, p: 0 });
+  $('f-plan-t').textContent = `≈ ${all.k} سعرة · ${Math.round(all.p)} جم بروتين`;
   $('f-plan').innerHTML = MEAL_PLAN.map((pm, i) => {
-    const m = planMacros(pm), n = planName(pm), on = eaten.has(n);
-    return `<li><div><b>${pm.t}</b><div class="mute">${esc(n)}</div><div class="mute">${m.k} سعرة · ${Math.round(m.p)} بروتين</div></div>
-      <button class="fit ${on ? 'p' : ''}" onclick="planMeal(${i})">${on ? '✓' : '+'}</button></li>`;
+    const m = sumMacros(planItems(pm)), n = planName(pm), on = eaten.has(n);
+    return `<li><div><b>${pm.t}</b><div class="mute">${esc(n)}</div><div class="mute">${m.k} سعرة · ${Math.round(m.p)} جم بروتين</div></div>
+      <div class="row fit" style="gap:6px"><button class="sm" onclick="editPlan(${i})" aria-label="عدّل">✎ عدّل</button>
+      <button class="sm ${on ? 'p' : ''}" onclick="planMeal(${i})" aria-label="${on ? 'إلغاء' : 'سجّل'}">${on ? '✓' : '+'}</button></div></li>`;
   }).join('');
 
   const list = S.meals.filter(m => m.date === d);
   $('f-list').innerHTML = Object.keys(SLOTS).map(sl => {
     const g = list.filter(m => m.slot === sl);
     if (!g.length) return '';
-    return `<li class="mute" style="padding-bottom:0;border:0">${SLOTS[sl]}</li>` + g.map(m =>
-      `<li><div><b style="font-weight:600">${esc(m.name)}</b><div class="mute">${m.k} سعرة · ب ${num(m.p)} · ك ${num(m.c)} · د ${num(m.f)}</div></div><button class="g del" onclick="rmMeal('${m.id}')">✕</button></li>`).join('');
-  }).join('') || '<li class="mute">لسه مسجلتش أكل لليوم ده</li>';
+    const st = g.reduce((a, m) => a + m.k, 0);
+    return `<li class="mute" style="padding-bottom:0;border:0"><span>${SLOTS[sl]}</span><span>${st} سعرة</span></li>` + g.map(m =>
+      `<li><div onclick="editMeal('${m.id}')" style="cursor:pointer;flex:1"><b style="font-weight:600">${esc(m.name)}</b><div class="mute">${m.k} سعرة · بروتين ${num(m.p)} · كارب ${num(m.c)} · دهون ${num(m.f)} · <span class="acc">تعديل</span></div></div>
+      <button class="g del" onclick="rmMeal('${m.id}')" aria-label="حذف">✕</button></li>`).join('');
+  }).join('') || '<li class="mute">لسه مسجلتش أكل في اليوم ده.</li>';
 }
+
+// اقتراح مرن مش قيد: بيقولك فاضلك قد إيه ويقترح حاجة رخيصة، والقرار ليك
+function foodSuggestion(d, t, tot) {
+  const left = t.kcal - tot.k, pLeft = t.pro - tot.p;
+  const days = [...Array(7)].map((_, i) => addDays(d, -i)).filter(x => S.meals.some(m => m.date === x));
+  const avg = days.length >= 3 ? Math.round(days.reduce((a, x) => a + mealTotals(x).k, 0) / days.length) : null;
+  const avgLine = avg ? `<p class="mute" style="margin:8px 0 0">متوسطك آخر ${days.length} أيام: <b>${avg}</b> سعرة من ${t.kcal}. المتوسط أهم من يوم لوحده.</p>` : '';
+  if (!tot.k) return `<p style="margin:0">ابدأ يومك بوجبة فيها بروتين. تقدر تسجّل الفطار من النظام تحت، أو تكتب اللي أكلته بنفسك.</p>${avgLine}`;
+  if (left < -150) return `<p style="margin:0">عدّيت هدفك بـ <b>${-left}</b> سعرة. مش مشكلة، يوم واحد مش هيفرق، والمهم المتوسط على الأسبوع.</p>${avgLine}`;
+  if (left <= 150) return `<p style="margin:0">👌 وصلت لهدفك النهارده${pLeft > 15 ? `، بس فاضلك ${Math.round(pLeft)} جم بروتين. اختار حاجة خفيفة زي علبة زبادي أو قريش.` : '.'}</p>${avgLine}`;
+  let picks = [];
+  if (pLeft > 15) {
+    picks = PROTEIN_PICKS.map(([id, q]) => ({ id, q, m: macrosOf(foodById(id), q) }))
+      .filter(x => x.m.k <= left + 50).sort((a, b) => b.m.p / b.m.k - a.m.p / a.m.k).slice(0, 3);
+  }
+  return `<p style="margin:0">فاضلك <b>${left}</b> سعرة${pLeft > 0 ? ` و<b class="blue">${Math.round(pLeft)}</b> جم بروتين` : ''}. كُل اللي تحبه${picks.length ? '، ولو محتار دي اقتراحات رخيصة غنية بالبروتين:' : '.'}</p>
+    ${picks.length ? `<div class="chips" style="margin-top:10px;flex-wrap:wrap">${picks.map(x => `<button class="chip" onclick="quickItem('${x.id}',${x.q})">+ ${esc(itemLabel(foodById(x.id), x.q))} · ${x.m.k} سعرة · ${x.m.p}ب</button>`).join('')}</div>` : ''}${avgLine}`;
+}
+
 function addMealEntry(o) { S.meals.push({ id: uid(), date: fDate(), ...o }); save(); vib(10); }
+function entryFromItems(items, slot) { return { slot, items, name: items.map(itemName).join(' + '), ...sumMacros(items) }; }
 function planMeal(i) {
   const pm = MEAL_PLAN[i], n = planName(pm), d = fDate();
   const had = S.meals.find(m => m.date === d && m.name === n);
-  if (had) S.meals = S.meals.filter(m => m !== had), save();
-  else addMealEntry({ slot: pm.slot, name: n, ...planMacros(pm) });
+  if (had) { S.meals = S.meals.filter(m => m !== had); save(); }
+  else { addMealEntry(entryFromItems(planItems(pm), pm.slot)); toast('اتسجّلت ✓'); }
   renderFood();
 }
-function reAdd(idx) { const m = S.meals[idx]; addMealEntry({ slot: defaultSlot(), name: m.name, k: m.k, p: m.p, c: m.c, f: m.f }); toast('اتضاف ✓'); renderFood(); }
+function editPlan(i) { const pm = MEAL_PLAN[i]; openBuilder(planItems(pm), pm.slot, null); }
+function quickItem(id, q) { addMealEntry(entryFromItems([{ id, q }], defaultSlot())); toast('اتسجّل ✓'); renderFood(); }
+function reAdd(idx) {
+  const m = S.meals[idx];
+  addMealEntry({ slot: defaultSlot(), name: m.name, k: m.k, p: m.p, c: m.c, f: m.f, ...(m.items ? { items: m.items } : {}) });
+  toast('اتسجّل ✓'); renderFood();
+}
+function editMeal(id) {
+  const m = S.meals.find(x => x.id === id);
+  openBuilder(m.items ? structuredClone(m.items) : [{ c: { n: m.name, k: m.k, p: m.p, c: m.c, f: m.f } }], m.slot, id);
+}
 function rmMeal(id) { S.meals = S.meals.filter(m => m.id !== id); save(); renderFood(); }
 
-// شيت إضافة أكل
-const FS = { id: null, q: 0, slot: 'b' };
-function openFood() {
-  FS.id = null; FS.slot = defaultSlot();
-  openSheet(`<div class="grip"></div><h3>أضف أكل</h3>
-    <div class="chips" id="fs-slot" style="margin:10px 0"></div>
-    <div id="fs-sel"></div>
-    <input id="fs-q" placeholder="دوّر على أكل…" oninput="renderFoodList()" style="margin:6px 0">
-    <div id="fs-list"></div>
-    <details style="margin-top:12px"><summary class="mute">إدخال يدوي</summary>
+// ===== شيت تسجيل وجبة: تكتب أكلت إيه بالظبط والتطبيق يحسب =====
+const FB = { items: [], slot: 'b', edit: null };
+function openBuilder(items = [], slot = defaultSlot(), edit = null) {
+  Object.assign(FB, { items: items.map(x => ({ ...x })), slot, edit });
+  openSheet(`<div class="grip"></div><h3>${edit ? 'تعديل الوجبة' : 'سجّل وجبة'}</h3>
+    <div class="chips" id="fb-slot" style="margin:10px 0"></div>
+    <div id="fb-items"></div>
+    <div class="card" style="margin:10px 0;background:var(--card2);padding:12px" id="fb-tot"></div>
+    <input id="fb-q" placeholder="ابحث عن أكل وضيفه… (بيض، فراخ، رز…)" oninput="renderFbList()">
+    <div id="fb-list" style="max-height:34vh;overflow:auto"></div>
+    <details style="margin-top:12px"><summary class="mute">أكل مش موجود في القائمة؟ اكتبه بنفسك</summary>
       <input id="fm-n" placeholder="اسم الأكل" style="margin:8px 0">
-      <div class="grid4"><input type="number" id="fm-k" placeholder="سعرات"><input type="number" id="fm-p" placeholder="بروتين"><input type="number" id="fm-c" placeholder="كارب"><input type="number" id="fm-f" placeholder="دهون"></div>
-      <button class="w" style="margin-top:8px" onclick="addManual()">أضف</button>
-    </details>`);
-  renderFoodSheet();
+      <div class="grid4"><div><label>سعرات</label><input type="number" id="fm-k"></div><div><label>بروتين</label><input type="number" id="fm-p"></div><div><label>كارب</label><input type="number" id="fm-c"></div><div><label>دهون</label><input type="number" id="fm-f"></div></div>
+      <button class="w" style="margin-top:8px" onclick="addCustom()">ضيفه للوجبة</button>
+    </details>
+    <button class="p w" style="margin-top:14px;padding:14px" id="fb-save" onclick="saveBuilder()"></button>
+    ${edit ? `<button class="g w del" style="margin-top:6px" onclick="rmMeal('${edit}');closeSheet()">حذف الوجبة</button>` : ''}`);
+  renderBuilder();
 }
-function renderFoodSheet() {
-  $('fs-slot').innerHTML = Object.entries(SLOTS).map(([k, l]) => `<button class="chip ${FS.slot === k ? 'on' : ''}" onclick="FS.slot='${k}';renderFoodSheet()">${l}</button>`).join('');
-  const f = FS.id && foodById(FS.id);
-  if (f) {
-    const m = macrosOf(f, FS.q), step = f.b === 100 ? 25 : 1;
-    $('fs-sel').innerHTML = `<div class="card" style="margin:6px 0;background:var(--card2)"><b>${f.n}</b>
-      <div class="row" style="margin:10px 0">
-        <button class="fit" onclick="FS.q=Math.max(${step},FS.q-${step});renderFoodSheet()">−</button>
-        <input type="number" value="${FS.q}" oninput="FS.q=+this.value||0;renderFoodSel()">
-        <span class="fit mute">${f.u}</span>
-        <button class="fit" onclick="FS.q+=${step};renderFoodSheet()">+</button>
-      </div>
-      <div class="mute" id="fs-m">${m.k} سعرة · ب ${m.p} · ك ${m.c} · د ${m.f}</div>
-      <button class="p w" style="margin-top:10px" onclick="addFood()">أضف ✓</button></div>`;
-  } else $('fs-sel').innerHTML = '';
-  renderFoodList();
+function renderBuilder() {
+  $('fb-slot').innerHTML = Object.entries(SLOTS).map(([k, l]) => `<button class="chip ${FB.slot === k ? 'on' : ''}" onclick="FB.slot='${k}';renderBuilder()">${l}</button>`).join('');
+  $('fb-items').innerHTML = FB.items.map((it, i) => {
+    const m = itemMacros(it);
+    if (it.c) return `<div class="fb-it"><div><b>${esc(it.c.n)}</b><div class="mute">${m.k} سعرة · بروتين ${m.p}</div></div><button class="g del" onclick="fbRm(${i})" aria-label="شيل">✕</button></div>`;
+    const f = foodById(it.id), step = f.b === 100 ? 25 : 1;
+    return `<div class="fb-it"><div style="flex:1;min-width:0"><b>${f.n}</b><div class="mute" id="fb-m${i}">${m.k} سعرة · بروتين ${m.p}</div></div>
+      <div class="stepper"><button onclick="fbQ(${i},-${step})" aria-label="أقل">−</button><input type="number" inputmode="decimal" value="${it.q}" oninput="fbSet(${i},this.value)"><button onclick="fbQ(${i},${step})" aria-label="أكتر">+</button></div>
+      <span class="mute" style="width:42px;text-align:center;font-size:12px">${f.u}</span>
+      <button class="g del" onclick="fbRm(${i})" aria-label="شيل">✕</button></div>`;
+  }).join('') || '<p class="mute" style="margin:6px 0">ابحث تحت وضيف كل حاجة أكلتها وكميتها.</p>';
+  renderFbTot(); renderFbList();
 }
-function renderFoodSel() { const f = foodById(FS.id), m = macrosOf(f, FS.q); $('fs-m').textContent = `${m.k} سعرة · ب ${m.p} · ك ${m.c} · د ${m.f}`; }
-function renderFoodList() {
-  const q = ($('fs-q').value || '').trim();
-  $('fs-list').innerHTML = FOODS.filter(f => !q || f.n.includes(q)).map(f =>
-    `<div class="food-it" onclick="FS.id='${f.id}';FS.q=${f.d};renderFoodSheet()"><span>${f.n}</span><span class="mute">${f.k} سعرة · ب ${f.p} / ${f.b === 1 ? f.u : '100جم'}</span></div>`).join('');
+function renderFbTot() {
+  const s = sumMacros(FB.items);
+  $('fb-tot').innerHTML = `<div class="grid4" style="text-align:center"><div class="stat"><b class="acc" style="text-align:center">${s.k}</b><span>سعرة</span></div><div class="stat"><b class="blue" style="text-align:center">${Math.round(s.p)}</b><span>بروتين</span></div><div class="stat"><b class="amber" style="text-align:center">${Math.round(s.c)}</b><span>كارب</span></div><div class="stat"><b class="pink" style="text-align:center">${Math.round(s.f)}</b><span>دهون</span></div></div>`;
+  $('fb-save').textContent = FB.items.length ? `${FB.edit ? 'احفظ التعديل' : 'سجّل الوجبة'} · ${s.k} سعرة` : 'ضيف أكل الأول';
 }
-function addFood() {
-  const f = foodById(FS.id); if (!FS.q) return;
-  addMealEntry({ slot: FS.slot, name: itemLabel(f, FS.q), ...macrosOf(f, FS.q) });
-  closeSheet(); toast('اتضاف ✓'); renderFood();
+function renderFbList() {
+  const q = ($('fb-q').value || '').trim();
+  $('fb-list').innerHTML = FOODS.filter(f => !q || f.n.includes(q)).map(f =>
+    `<div class="food-it" onclick="fbAdd('${f.id}')"><span>${f.n}</span><span class="mute">${f.k} سعرة / ${f.b === 1 ? f.u : '100 جم'} <b class="acc">+</b></span></div>`).join('')
+    || '<p class="mute">مش لاقيه؟ اكتبه بنفسك تحت.</p>';
 }
-function addManual() {
+function fbAdd(id) { const f = foodById(id), ex = FB.items.find(x => x.id === id); if (ex) ex.q += f.b === 100 ? 50 : 1; else FB.items.push({ id, q: f.d }); $('fb-q').value = ''; vib(8); renderBuilder(); }
+function fbQ(i, d) { const it = FB.items[i]; it.q = Math.max(0, num(it.q + d)); renderBuilder(); }
+function fbSet(i, v) { FB.items[i].q = +v || 0; const m = itemMacros(FB.items[i]); $('fb-m' + i).textContent = `${m.k} سعرة · بروتين ${m.p}`; renderFbTot(); }
+function fbRm(i) { FB.items.splice(i, 1); renderBuilder(); }
+function addCustom() {
   const n = $('fm-n').value.trim(), k = +$('fm-k').value || 0;
   if (!n || !k) return toast('اكتب الاسم والسعرات');
-  addMealEntry({ slot: FS.slot, name: n, k, p: +$('fm-p').value || 0, c: +$('fm-c').value || 0, f: +$('fm-f').value || 0 });
-  closeSheet(); toast('اتضاف ✓'); renderFood();
+  FB.items.push({ c: { n, k, p: +$('fm-p').value || 0, c: +$('fm-c').value || 0, f: +$('fm-f').value || 0 } });
+  ['n', 'k', 'p', 'c', 'f'].forEach(x => $('fm-' + x).value = '');
+  renderBuilder();
+}
+function saveBuilder() {
+  const items = FB.items.filter(it => it.c || it.q > 0);
+  if (!items.length) return toast('ضيف أكل الأول');
+  const e = entryFromItems(items, FB.slot);
+  if (FB.edit) Object.assign(S.meals.find(m => m.id === FB.edit), e), save();
+  else addMealEntry(e);
+  closeSheet(); toast(FB.edit ? 'اتعدّلت ✓' : 'اتسجّلت ✓'); renderFood();
 }
 
 // ================= التقدم =================

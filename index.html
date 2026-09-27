@@ -135,6 +135,23 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 .sheet h3{margin:0 0 4px;font-size:18px}
 .grip{width:40px;height:4px;border-radius:9px;background:var(--line);margin:-6px auto 12px}
 
+
+.week .plan b{color:var(--mute);font-weight:400}
+.how{margin:8px 0 4px;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:0 12px}
+.how summary{cursor:pointer;padding:10px 0;font-size:13px;font-weight:600;color:var(--acc);list-style:none;display:flex;justify-content:space-between}
+.how summary::-webkit-details-marker{display:none}
+.how summary::after{content:'▾';transition:transform .2s}
+.how[open] summary::after{transform:rotate(180deg)}
+.how-img{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.how-img img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;background:#fff}
+.how ol{margin:10px 0 0;padding-inline-start:20px;font-size:14px}
+.how ol li{margin:4px 0}
+.how[open]{padding-bottom:12px}
+.fb-it{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.stepper{display:flex;align-items:center;gap:4px;flex:0 0 auto}
+.stepper button{padding:0;width:34px;height:36px;border-radius:10px}
+.stepper input{width:58px;padding:7px 2px}
+details summary{cursor:pointer}
 nav{position:fixed;bottom:0;inset-inline:0;background:rgba(14,15,17,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:5}
 nav button{background:none;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;padding:4px 12px}
@@ -226,15 +243,19 @@ nav button.on{color:var(--acc)}
       <div class="macro" id="f-macro"></div>
     </div>
     <div class="card">
-      <button class="p w" onclick="openFood()">+ أضف أكل</button>
+      <h2>اقتراح النهارده</h2>
+      <div id="f-sugg"></div>
+    </div>
+    <div class="card">
+      <button class="p w" onclick="openBuilder()">+ سجّل وجبة (اكتب أكلت إيه)</button>
       <div class="chips" id="f-quick" style="margin-top:12px"></div>
     </div>
     <div class="card">
-      <h2><span>النظام الرخيص</span><span class="mute" id="f-plan-t"></span></h2>
+      <h2><span>النظام الرخيص (اقتراح، عدّل عليه براحتك)</span><span class="mute" id="f-plan-t"></span></h2>
       <ul class="list" id="f-plan"></ul>
     </div>
     <div class="card">
-      <h2>أكلت إيه</h2>
+      <h2>أكلت إيه النهارده</h2>
       <ul class="list" id="f-list"></ul>
     </div>
   </section>
@@ -324,6 +345,7 @@ nav button.on{color:var(--acc)}
         <li><i>📊</i><span><b>الحجم الأسبوعي:</b> العضلة بتكبر بعدد المجموعات الصعبة في الأسبوع. التطبيق بيعدّها لكل عضلة، وبيحسب التمرين المساعد بنص مجموعة.</span></li>
         <li><i>🔄</i><span><b>Deload:</b> 4 أسابيع تقيلة وبعدهم أسبوع خفيف، مجموعات أقل ووزن أقل 10%، عشان جسمك يستشفى.</span></li>
         <li><i>⚖️</i><span><b>سعرات بتتظبط لوحدها:</b> التطبيق بيحسب متوسط وزنك مش وزن يوم واحد. لو نزولك أسرع أو أبطأ من هدفك بيقترح تعديل السعرات بعد أسبوعين.</span></li>
+        <li><i>🔁</i><span><b>ترتيب مرن:</b> البرنامج مش مربوط بأيام الأسبوع. لو فوّت يوم، التطبيق بيكمّل من التمرين اللي عليك، وبيقترح راحة بعد يوم الرجل ويوم Upper.</span></li>
         <li><i>😴</i><span><b>الجاهزية:</b> لو نومك وطاقتك وحشين، التمرين بيخفّ لوحده مجموعة من كل تمرين.</span></li>
       </ul>
     </div>
