@@ -94,6 +94,8 @@ button:active{transform:scale(.97)}
 .set input{padding:10px 4px}
 .set.head{margin:8px 0 0;font-size:11px;color:var(--mute);text-align:center}
 .set .rir{padding:0;height:42px;background:var(--bg);border:1px solid var(--line);font-size:13px;color:var(--mute)}
+.set .rir.kc{display:flex;align-items:center;justify-content:center;border-radius:12px;color:var(--amber);font-weight:600}
+select.unit{width:auto;flex:0 0 auto;padding:7px 4px;font-size:12px;max-width:92px}
 .tick{background:var(--bg);border:1px solid var(--line);padding:0;height:42px;border-radius:12px;color:var(--mute);font-size:18px}
 .set.done input{border-color:rgba(198,244,50,.5)}
 .set.done .tick{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
@@ -346,6 +348,7 @@ nav button.on{color:var(--acc)}
         <li><i>🔄</i><span><b>Deload:</b> 4 أسابيع تقيلة وبعدهم أسبوع خفيف، مجموعات أقل ووزن أقل 10%، عشان جسمك يستشفى.</span></li>
         <li><i>⚖️</i><span><b>سعرات بتتظبط لوحدها:</b> التطبيق بيحسب متوسط وزنك مش وزن يوم واحد. لو نزولك أسرع أو أبطأ من هدفك بيقترح تعديل السعرات بعد أسبوعين.</span></li>
         <li><i>🔁</i><span><b>ترتيب مرن:</b> البرنامج مش مربوط بأيام الأسبوع. لو فوّت يوم، التطبيق بيكمّل من التمرين اللي عليك، وبيقترح راحة بعد يوم الرجل ويوم Upper.</span></li>
+        <li><i>🏃</i><span><b>الكارديو:</b> 15 دقيقة مشي بميل في آخر كل تمرين (ما عدا يوم الرجل)، ومعاهم 8-10 آلاف خطوة في اليوم. السعرات المحروقة بتتحسب من وزنك وسرعتك والمدة، ومش بتتضاف لهدف الأكل عشان هي محسوبة أصلًا في معدل حركتك.</span></li>
         <li><i>😴</i><span><b>الجاهزية:</b> لو نومك وطاقتك وحشين، التمرين بيخفّ لوحده مجموعة من كل تمرين.</span></li>
       </ul>
     </div>
@@ -381,6 +384,7 @@ nav button.on{color:var(--acc)}
 <div class="toast" id="toast"></div>
 
 <script src="data.js"></script>
+<script src="foods.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

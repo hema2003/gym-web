@@ -3,7 +3,7 @@ const KEY = 'gym-data-v1';
 const DEF = () => ({
   v: 2,
   profile: { h: 173, w: 83, bf: 20, act: 1.6, goal: 'recomp', adj: 0, adjDate: null, meso: null },
-  workouts: [], meals: [], weights: [], meas: [], daily: {}, draft: null
+  workouts: [], meals: [], weights: [], meas: [], daily: {}, myFoods: [], draft: null
 });
 const GOALS = {
   cut:    { d: -0.2, r: -0.0075, ar: 'تنشيف' },
@@ -47,7 +47,9 @@ function migrate(s) {
   if (s.draft) s.draft.ex.forEach(e => { e.id = resolveId(e.id); });
   s.meals.forEach(m => { if (m.k == null) Object.assign(m, { k: +m.kcal || 0, p: +m.pro || 0, c: 0, f: 0, slot: 's' }); });
   if (s.draft && !s.draft.v2) s.draft = null;
-  s.daily = s.daily || {}; s.meas = s.meas || []; s.v = 2;
+  // أصناف الأكل القديمة كانت بالوحدة أو بالجرام من غير u
+  s.meals.forEach(m => (m.items || []).forEach(it => { if (it.id && it.u === undefined) it.u = UNIT_IDS.includes(it.id) ? 0 : -1; }));
+  s.daily = s.daily || {}; s.meas = s.meas || []; s.myFoods = s.myFoods || []; s.v = 2;
   return s;
 }
 let S;
@@ -123,13 +125,14 @@ function weeklyVolume(from = addDays(today(), -6)) {
   const v = Object.fromEntries(Object.keys(MUSCLES).map(k => [k, 0]));
   S.workouts.filter(w => w.date >= from).forEach(w => w.ex.forEach(e => {
     const X = exInfo(e.id), n = e.sets.length;
-    if (X.m) v[X.m] += n;
-    (X.sec || []).forEach(m => v[m] += n / 2);
+    if (X.m && v[X.m] != null) v[X.m] += n;
+    (X.sec || []).forEach(m => { if (v[m] != null) v[m] += n / 2; });
   }));
   return v;
 }
 function bestE1rm(id, beforeDate) {
   let b = 0;
+  if (isCardio(id)) return 0;
   S.workouts.forEach(w => { if (beforeDate && w.date >= beforeDate) return; w.ex.forEach(e => e.id === id && e.sets.forEach(s => b = Math.max(b, e1rm(s.w, s.r)))); });
   return b;
 }
@@ -145,7 +148,21 @@ function lastSession(id) {
   }
   return fallback;
 }
+// ===== كارديو: السعرات = MET × الوزن × الساعات =====
+const isCardio = id => exInfo(id).m === 'cardio';
+function cardioMet(X, w) {
+  if (X.cardio === 'lvl') return X.mets[Math.max(0, Math.min(2, Math.round(+w || 2) - 1))];
+  const v = (+w || 0) * 1000 / 60, g = X.grade || 0; // م/دقيقة (معادلات ACSM)
+  return (X.cardio === 'run' ? 0.2 * v + 0.9 * v * g + 3.5 : 0.1 * v + 1.8 * v * g + 3.5) / 3.5;
+}
+const cardioKcal = (id, w, min) => Math.round(cardioMet(exInfo(id), w) * curWeight() * (+min || 0) / 60);
 function suggest(id) {
+  if (isCardio(id)) {
+    const X = exInfo(id), L = lastSession(id);
+    if (!L) return { w: X.dw, r: X.dm, note: `ابدأ بـ ${X.dm} دقيقة` };
+    const s = L.sets[0];
+    return { w: s.w, r: Math.min(X.rr[1], s.r + (s.r < X.rr[1] ? 2 : 0)), note: s.r < X.rr[1] ? 'زوّد دقيقتين عن المرة اللي فاتت' : 'ثبّت المدة، وزوّد السرعة أو الشدة سنة' };
+  }
   const X = exInfo(id), [lo, hi] = X.rr, L = lastSession(id);
   if (!L) return { w: '', r: lo, note: `أول مرة: اختار وزن تقدر تعمل بيه ${lo}-${hi} عدّة وتفضل قادر على 2 زيادة` };
   const top = Math.max(...L.sets.map(s => s.w));
@@ -161,7 +178,8 @@ function suggest(id) {
 function makeEx(id, sets, deload, low) {
   const X = exInfo(id), g = suggest(id);
   let n = sets, w = g.w, note = g.note;
-  if (deload) { n = Math.max(2, Math.ceil(sets / 2)); if (w !== '') w = roundTo(w * 0.9, X.inc || 1); note = 'أسبوع خفيف: وزن أقل 10% ومجموعات أقل'; }
+  if (X.m === 'cardio') { n = sets; }
+  else if (deload) { n = Math.max(2, Math.ceil(sets / 2)); if (w !== '') w = roundTo(w * 0.9, X.inc || 1); note = 'أسبوع خفيف: وزن أقل 10% ومجموعات أقل'; }
   else if (low) n = Math.max(2, sets - 1);
   return { id, tw: w, tr: g.r, note, up: !deload && g.up, sets: Array.from({ length: n }, () => ({ w, r: g.r, rir: null, ok: false })) };
 }
@@ -286,7 +304,11 @@ function coachTips() {
     const prs = S.workouts.filter(w => w.date >= addDays(d, -6)).reduce((a, w) => a + (w.prs || 0), 0);
     if (prs) tips.push(['🏆', `كسرت ${prs} رقم قياسي الأسبوع ده. عاش!`]);
   }
-  const wkN = S.workouts.filter(w => w.date >= weekStart(d)).length;
+  const wkW = S.workouts.filter(w => w.date >= weekStart(d));
+  const cMin = wkW.reduce((a, w) => a + w.ex.filter(e => isCardio(e.id)).reduce((b, e) => b + e.sets.reduce((c, s) => c + s.r, 0), 0), 0);
+  const cK = wkW.reduce((a, w) => a + w.ex.filter(e => isCardio(e.id)).reduce((b, e) => b + e.sets.reduce((c, s) => c + cardioKcal(e.id, s.w, s.r), 0), 0), 0);
+  tips.push(['🏃', cMin ? `كارديو الأسبوع ده: ${cMin} دقيقة ≈ ${cK} سعرة. الهدف حوالي 60 دقيقة + خطوات يومية.` : 'مفيش كارديو الأسبوع ده لسه. 15 دقيقة مشي بميل في آخر التمرين بتفرق في التنشيف.']);
+  const wkN = wkW.length;
   tips.push(['📅', `عملت ${wkN} من 5 تمارين الأسبوع ده.`]);
   return tips;
 }
@@ -327,16 +349,18 @@ function renderWork() {
   $('w-ex').innerHTML = D.ex.length ? D.ex.map((e, i) => {
     const X = exInfo(e.id);
     return `<div class="ex">
-      <div class="ex-h"><div><b>${esc(X.ar)}</b>${X.n !== X.ar ? `<small class="ltr">${esc(X.n)}</small><small> · ` : '<small>'}${X.eq ? EQ[X.eq] + ' · ' : ''}${X.rr[0]}-${X.rr[1]} عدّة · راحة ${X.rest} ث</small></div>
+      <div class="ex-h"><div><b>${esc(X.ar)}</b>${X.n !== X.ar ? `<small class="ltr">${esc(X.n)}</small><small> · ` : '<small>'}${X.eq ? EQ[X.eq] + ' · ' : ''}${X.m === 'cardio' ? `${X.rr[0]}-${X.rr[1]} دقيقة` : `${X.rr[0]}-${X.rr[1]} عدّة · راحة ${X.rest} ث`}</small></div>
         <button class="g" onclick="exSheet(${i})" aria-label="خيارات التمرين">⋯</button></div>
       ${howTo(e.id, i)}
-      <div class="target"><span class="tag ${e.up ? 'acc' : 'blue'} ltr">🎯 ${e.tw !== '' ? e.tw + ' kg × ' : ''}${e.tr}</span><span class="mute">${e.note}</span></div>
-      <div class="set head"><span></span><span>الوزن</span><span>العدّات</span><span>RIR</span><span></span></div>
+      ${X.m === 'cardio' ? `<div class="target"><span class="tag blue">🎯 ${e.tr} دقيقة · ${X.wl.split(' ')[0]} ${e.tw}</span><span class="mute">${e.note}</span></div>
+      <div class="set head"><span></span><span>${X.wl}</span><span>دقايق</span><span>سعرات</span><span></span></div>`
+      : `<div class="target"><span class="tag ${e.up ? 'acc' : 'blue'} ltr">🎯 ${e.tw !== '' ? e.tw + ' kg × ' : ''}${e.tr}</span><span class="mute">${e.note}</span></div>
+      <div class="set head"><span></span><span>الوزن</span><span>العدّات</span><span>RIR</span><span></span></div>`}
       ${e.sets.map((s, j) => `<div class="set ${s.ok ? 'done' : ''}">
         <span class="n">${j + 1}</span>
         <input type="number" step="0.5" inputmode="decimal" value="${s.w}" onchange="setVal(${i},${j},'w',this.value)">
         <input type="number" inputmode="numeric" value="${s.r}" onchange="setVal(${i},${j},'r',this.value)">
-        <button class="rir" onclick="cycleRir(${i},${j})">${s.rir == null ? '—' : s.rir === 3 ? '3+' : s.rir}</button>
+        ${X.m === 'cardio' ? `<span class="rir kc">${cardioKcal(e.id, s.w, s.r)}</span>` : `<button class="rir" onclick="cycleRir(${i},${j})">${s.rir == null ? '—' : s.rir === 3 ? '3+' : s.rir}</button>`}
         <button class="tick" onclick="tick(${i},${j})">✓</button>
       </div>`).join('')}
       <div class="row"><button class="g sm fit" onclick="addSet(${i})">+ مجموعة</button><button class="g sm fit" onclick="rmSet(${i})">− مجموعة</button></div>
@@ -367,7 +391,7 @@ function updateMeta() {
 }
 setInterval(() => view === 'work' && updateMeta(), 20000);
 function syncHead() { if (S.draft) { S.draft.date = $('w-date').value || today(); save(); } }
-function setVal(i, j, f, v) { S.draft.ex[i].sets[j][f] = v === '' ? '' : +v; save(); }
+function setVal(i, j, f, v) { S.draft.ex[i].sets[j][f] = v === '' ? '' : +v; save(); if (isCardio(S.draft.ex[i].id)) renderWork(); }
 function cycleRir(i, j) { const s = S.draft.ex[i].sets[j]; s.rir = s.rir == null ? 3 : s.rir === 0 ? null : s.rir - 1; save(); vib(5); renderWork(); }
 function tick(i, j) {
   const e = S.draft.ex[i], s = e.sets[j];
@@ -377,7 +401,7 @@ function tick(i, j) {
   if (s.ok) {
     // الوزن والعدّات بيتنقلوا للمجموعة الجاية لو لسه متعملتش
     const nx = e.sets[j + 1]; if (nx && !nx.ok) { nx.w = s.w; }
-    startRest(exInfo(e.id).rest); vib(15);
+    if (!isCardio(e.id)) startRest(exInfo(e.id).rest); vib(15);
   }
   save(); renderWork();
 }
@@ -398,9 +422,12 @@ function finishWorkout() {
   S.workouts.push(w);
   S.workouts.sort((a, b) => a.date.localeCompare(b.date));
   S.draft = null; restStop(); save(); vib([30, 50, 30]);
-  const sets = ex.reduce((a, e) => a + e.sets.length, 0), vol = ex.reduce((a, e) => a + e.sets.reduce((b, s) => b + s.w * s.r, 0), 0);
+  const lift = ex.filter(e => !isCardio(e.id)), cardio = ex.filter(e => isCardio(e.id));
+  const sets = lift.reduce((a, e) => a + e.sets.length, 0), vol = lift.reduce((a, e) => a + e.sets.reduce((b, s) => b + s.w * s.r, 0), 0);
+  const cMin = cardio.reduce((a, e) => a + e.sets.reduce((b, s) => b + s.r, 0), 0), cKcal = cardio.reduce((a, e) => a + e.sets.reduce((b, s) => b + cardioKcal(e.id, s.w, s.r), 0), 0);
   openSheet(`<div class="grip"></div><h3>عاش! 💪 ${esc(w.name)}</h3><p class="mute" style="margin:0 0 12px">${fmtDay(w.date)}</p>
     <div class="grid3"><div class="stat"><b>${sets}</b><span>مجموعة</span></div><div class="stat"><b>${Math.round(vol)}</b><span>كجم حجم</span></div><div class="stat"><b>${w.dur || '—'}</b><span>دقيقة</span></div></div>
+    ${cMin ? `<div class="banner" style="margin:12px 0 0">🏃 كارديو: ${cMin} دقيقة ≈ ${cKcal} سعرة محروقة</div>` : ''}
     ${prs.length ? `<div class="card" style="margin:14px 0 0"><h2>🏆 أرقام قياسية جديدة</h2>${prs.map(e => `<div>${esc(exInfo(e.id).ar)}</div>`).join('')}</div>` : ''}
     <button class="p w" style="margin-top:14px" onclick="closeSheet();go('home')">تمام</button>`);
 }
@@ -410,10 +437,10 @@ function exSheet(i) {
   const e = S.draft.ex[i], X = exInfo(e.id);
   const hist = S.workouts.filter(w => w.ex.some(x => x.id === e.id)).slice(-4).reverse();
   const alts = Object.entries(EX).filter(([id, x]) => x.m && x.m === X.m && id !== e.id && !S.draft.ex.some(y => y.id === id));
-  openSheet(`<div class="grip"></div><h3>${esc(X.ar)}</h3><p class="mute" style="margin:0 0 10px">${esc(X.n)}${X.m ? ` · ${MUSCLES[X.m]}` : ''}${(X.sec || []).length ? ' + ' + X.sec.map(m => MUSCLES[m]).join('، ') : ''}</p>
+  openSheet(`<div class="grip"></div><h3>${esc(X.ar)}</h3><p class="mute" style="margin:0 0 10px">${esc(X.n)}${X.m ? ` · ${(MUSCLES[X.m] || 'كارديو')}` : ''}${(X.sec || []).length ? ' + ' + X.sec.map(m => MUSCLES[m]).join('، ') : ''}</p>
     ${howTo(e.id, i).replace('<details class="how"', '<details class="how" open')}
     <h2 class="mute" style="font-size:13px;margin:12px 0 4px">آخر مرات</h2>
-    <ul class="list">${hist.map(w => { const x = w.ex.find(y => y.id === e.id); return `<li><span class="mute">${fmtShort(w.date)}</span><span class="ltr">${x.sets.map(s => `${s.w}×${s.r}`).join('  ')}</span></li>`; }).join('') || '<li class="mute">لسه</li>'}</ul>
+    <ul class="list">${hist.map(w => { const x = w.ex.find(y => y.id === e.id); return `<li><span class="mute">${fmtShort(w.date)}</span><span class="ltr">${isCardio(e.id) ? x.sets.map(s => `${s.r} د`).join('  ') : x.sets.map(s => `${s.w}×${s.r}`).join('  ')}</span></li>`; }).join('') || '<li class="mute">لسه</li>'}</ul>
     ${alts.length ? `<h2 class="mute" style="font-size:13px;margin:12px 0 6px">بدّل بتمرين تاني لنفس العضلة</h2><div class="chips" style="flex-wrap:wrap">${alts.map(([id, x]) => `<button class="chip" onclick="swapEx(${i},'${id}')">${esc(x.ar)}</button>`).join('')}</div>` : ''}
     <div class="row" style="margin-top:14px">
       <button onclick="moveEx(${i},-1)">↑ لفوق</button><button onclick="moveEx(${i},1)">↓ لتحت</button>
@@ -434,9 +461,9 @@ function renderPicker() {
   const q = $('pk-q').value.trim().toLowerCase();
   const items = Object.entries(EX).filter(([, x]) => !q || x.ar.includes(q) || x.n.toLowerCase().includes(q));
   let h = '';
-  for (const m in MUSCLES) {
+  for (const m of [...Object.keys(MUSCLES), 'cardio']) {
     const g = items.filter(([, x]) => x.m === m);
-    if (g.length) h += `<div class="mute" style="margin:10px 0 2px">${MUSCLES[m]}</div>` + g.map(([id, x]) => `<div class="food-it" onclick="pickEx('${id}')"><span>${esc(x.ar)} <span class="tag">${EQ[x.eq]}</span></span><span class="mute ltr">${esc(x.n)}</span></div>`).join('');
+    if (g.length) h += `<div class="mute" style="margin:10px 0 2px">${MUSCLES[m] || 'كارديو'}</div>` + g.map(([id, x]) => `<div class="food-it" onclick="pickEx('${id}')"><span>${esc(x.ar)} <span class="tag">${EQ[x.eq]}</span></span><span class="mute ltr">${esc(x.n)}</span></div>`).join('');
   }
   if (q) h += `<button class="w" style="margin-top:10px" onclick="pickEx('x:'+$('pk-q').value.trim())">+ ضيف "${esc($('pk-q').value.trim())}" كتمرين جديد</button>`;
   $('pk-l').innerHTML = h;
@@ -446,7 +473,7 @@ function pickEx(id) { S.draft.ex.push(makeEx(resolveId(id), 3, S.draft.deload, S
 function histSheet(id) {
   const w = S.workouts.find(x => x.id === id);
   openSheet(`<div class="grip"></div><h3>${esc(w.name)}</h3><p class="mute" style="margin:0 0 10px">${fmtDay(w.date)}${w.dur ? ` · ${w.dur} دقيقة` : ''}</p>
-    <ul class="list">${w.ex.map(e => `<li><span>${esc(exInfo(e.id).ar)}</span><span class="ltr mute">${e.sets.map(s => `${s.w}×${s.r}`).join('  ')}</span></li>`).join('')}</ul>
+    <ul class="list">${w.ex.map(e => `<li><span>${esc(exInfo(e.id).ar)}</span><span class="ltr mute">${isCardio(e.id) ? e.sets.map(s => `${s.r} د · ${cardioKcal(e.id, s.w, s.r)} سعرة`).join('  ') : e.sets.map(s => `${s.w}×${s.r}`).join('  ')}</span></li>`).join('')}</ul>
     <button class="g w del" style="margin-top:12px" onclick="rmWorkout('${id}')">مسح التمرين ده</button>`);
 }
 function rmWorkout(id) {
@@ -487,15 +514,18 @@ function beep() {
 }
 
 // ================= الأكل =================
-const foodById = id => FOODS.find(f => f.id === id);
-const macrosOf = (f, q) => { const m = q / f.b; return { k: Math.round(f.k * m), p: num(f.p * m), c: num(f.c * m), f: num(f.f * m) }; };
-const qtyLabel = (f, q) => f.u === 'جم' ? `${q} جم` : `${q} ${f.u}`;
-const itemLabel = (f, q) => f.u === 'جم' ? `${f.n} ${q} جم` : `${f.n} ×${q}`;
-// عنصر الوجبة: {id, q} من قاعدّة الأكل أو {c:{n,k,p,c,f}} إدخال يدوي
-const itemMacros = it => it.c ? { k: +it.c.k || 0, p: +it.c.p || 0, c: +it.c.c || 0, f: +it.c.f || 0 } : macrosOf(foodById(it.id), it.q);
-const itemName = it => it.c ? it.c.n : itemLabel(foodById(it.id), it.q);
+// كل القيم لكل 100 جم. عنصر الوجبة: {id, q, u} و u = -1 يعني جرامات، وأي رقم تاني يعني رقم الحصة (بيضة، رغيف، كوباية…)
+// أو {c:{n,k,p,c,f}} لإدخال يدوي قديم
+const foodById = id => FOODS.find(f => f.id === id) || (S.myFoods || []).find(f => f.id === id);
+const normAr = s => String(s || '').toLowerCase().replace(/[ً-ٟـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي').trim();
+const macrosOf = (f, g) => { const m = g / 100; return { k: Math.round(f.k * m), p: num(f.p * m), c: num(f.c * m), f: num(f.f * m) }; };
+const gramsOf = it => { const f = foodById(it.id); return it.u >= 0 && f.por[it.u] ? it.q * f.por[it.u][1] : it.q; };
+const unitName = (f, u) => u >= 0 && f.por[u] ? f.por[u][0] : 'جم';
+const itemMacros = it => it.c ? { k: +it.c.k || 0, p: +it.c.p || 0, c: +it.c.c || 0, f: +it.c.f || 0 } : foodById(it.id) ? macrosOf(foodById(it.id), gramsOf(it)) : { k: 0, p: 0, c: 0, f: 0 };
+const itemName = it => { if (it.c) return it.c.n; const f = foodById(it.id); return f ? `${f.n} · ${num(it.q)} ${unitName(f, it.u)}` : '؟'; };
 const sumMacros = items => items.map(itemMacros).reduce((a, m) => ({ k: a.k + m.k, p: num(a.p + m.p), c: num(a.c + m.c), f: num(a.f + m.f) }), { k: 0, p: 0, c: 0, f: 0 });
-const planItems = pm => pm.items.map(([id, q]) => ({ id, q }));
+const toItem = ([id, q, u]) => ({ id, q, u: u ?? -1 });
+const planItems = pm => pm.items.map(toItem);
 const planName = pm => planItems(pm).map(itemName).join(' + ');
 const fDate = () => $('f-date').value || today();
 function shiftDay(n) { $('f-date').value = addDays(fDate(), n); renderFood(); }
@@ -511,7 +541,7 @@ function renderFood() {
 
   const seen = new Set(), recent = [];
   for (let i = S.meals.length - 1; i >= 0 && recent.length < 10; i--) { const m = S.meals[i]; if (!seen.has(m.name)) { seen.add(m.name); recent.push(i); } }
-  $('f-quick').innerHTML = recent.map(i => { const n = S.meals[i].name; return `<button class="chip" onclick="reAdd(${i})">+ ${esc(n.length > 28 ? n.slice(0, 26) + '…' : n)}</button>`; }).join('');
+  $('f-quick').innerHTML = recent.map(i => { const n = S.meals[i].name; return `<button class="chip" onclick="reAdd(${i})">+ ${esc(n.length > 30 ? n.slice(0, 28) + '…' : n)}</button>`; }).join('');
 
   const eaten = new Set(S.meals.filter(m => m.date === d).map(m => m.name));
   const all = MEAL_PLAN.reduce((a, pm) => { const m = sumMacros(planItems(pm)); return { k: a.k + m.k, p: a.p + m.p }; }, { k: 0, p: 0 });
@@ -519,7 +549,7 @@ function renderFood() {
   $('f-plan').innerHTML = MEAL_PLAN.map((pm, i) => {
     const m = sumMacros(planItems(pm)), n = planName(pm), on = eaten.has(n);
     return `<li><div><b>${pm.t}</b><div class="mute">${esc(n)}</div><div class="mute">${m.k} سعرة · ${Math.round(m.p)} جم بروتين</div></div>
-      <div class="row fit" style="gap:6px"><button class="sm" onclick="editPlan(${i})" aria-label="عدّل">✎ عدّل</button>
+      <div class="row fit" style="gap:6px"><button class="sm" onclick="editPlan(${i})">✎ عدّل</button>
       <button class="sm ${on ? 'p' : ''}" onclick="planMeal(${i})" aria-label="${on ? 'إلغاء' : 'سجّل'}">${on ? '✓' : '+'}</button></div></li>`;
   }).join('');
 
@@ -540,16 +570,13 @@ function foodSuggestion(d, t, tot) {
   const days = [...Array(7)].map((_, i) => addDays(d, -i)).filter(x => S.meals.some(m => m.date === x));
   const avg = days.length >= 3 ? Math.round(days.reduce((a, x) => a + mealTotals(x).k, 0) / days.length) : null;
   const avgLine = avg ? `<p class="mute" style="margin:8px 0 0">متوسطك آخر ${days.length} أيام: <b>${avg}</b> سعرة من ${t.kcal}. المتوسط أهم من يوم لوحده.</p>` : '';
-  if (!tot.k) return `<p style="margin:0">ابدأ يومك بوجبة فيها بروتين. تقدر تسجّل الفطار من النظام تحت، أو تكتب اللي أكلته بنفسك.</p>${avgLine}`;
+  if (!tot.k) return `<p style="margin:0">ابدأ يومك بوجبة فيها بروتين. سجّل الفطار من النظام تحت، أو اكتب اللي أكلته بنفسك.</p>${avgLine}`;
   if (left < -150) return `<p style="margin:0">عدّيت هدفك بـ <b>${-left}</b> سعرة. مش مشكلة، يوم واحد مش هيفرق، والمهم المتوسط على الأسبوع.</p>${avgLine}`;
-  if (left <= 150) return `<p style="margin:0">👌 وصلت لهدفك النهارده${pLeft > 15 ? `، بس فاضلك ${Math.round(pLeft)} جم بروتين. اختار حاجة خفيفة زي علبة زبادي أو قريش.` : '.'}</p>${avgLine}`;
+  if (left <= 150) return `<p style="margin:0">👌 وصلت لهدفك النهارده${pLeft > 15 ? `، بس فاضلك ${Math.round(pLeft)} جم بروتين. اختار حاجة خفيفة زي علبة زبادي يوناني أو قريش.` : '.'}</p>${avgLine}`;
   let picks = [];
-  if (pLeft > 15) {
-    picks = PROTEIN_PICKS.map(([id, q]) => ({ id, q, m: macrosOf(foodById(id), q) }))
-      .filter(x => x.m.k <= left + 50).sort((a, b) => b.m.p / b.m.k - a.m.p / a.m.k).slice(0, 3);
-  }
+  if (pLeft > 15) picks = PROTEIN_PICKS.map(toItem).map(it => ({ it, m: itemMacros(it) })).filter(x => x.m.k <= left + 50).sort((a, b) => b.m.p / b.m.k - a.m.p / a.m.k).slice(0, 3);
   return `<p style="margin:0">فاضلك <b>${left}</b> سعرة${pLeft > 0 ? ` و<b class="blue">${Math.round(pLeft)}</b> جم بروتين` : ''}. كُل اللي تحبه${picks.length ? '، ولو محتار دي اقتراحات رخيصة غنية بالبروتين:' : '.'}</p>
-    ${picks.length ? `<div class="chips" style="margin-top:10px;flex-wrap:wrap">${picks.map(x => `<button class="chip" onclick="quickItem('${x.id}',${x.q})">+ ${esc(itemLabel(foodById(x.id), x.q))} · ${x.m.k} سعرة · ${x.m.p}ب</button>`).join('')}</div>` : ''}${avgLine}`;
+    ${picks.length ? `<div class="chips" style="margin-top:10px;flex-wrap:wrap">${picks.map(x => `<button class="chip" onclick='quickItem(${JSON.stringify(x.it)})'>+ ${esc(itemName(x.it))} · ${x.m.k} سعرة · ${x.m.p} ب</button>`).join('')}</div>` : ''}${avgLine}`;
 }
 
 function addMealEntry(o) { S.meals.push({ id: uid(), date: fDate(), ...o }); save(); vib(10); }
@@ -562,7 +589,7 @@ function planMeal(i) {
   renderFood();
 }
 function editPlan(i) { const pm = MEAL_PLAN[i]; openBuilder(planItems(pm), pm.slot, null); }
-function quickItem(id, q) { addMealEntry(entryFromItems([{ id, q }], defaultSlot())); toast('اتسجّل ✓'); renderFood(); }
+function quickItem(it) { addMealEntry(entryFromItems([it], defaultSlot())); toast('اتسجّل ✓'); renderFood(); }
 function reAdd(idx) {
   const m = S.meals[idx];
   addMealEntry({ slot: defaultSlot(), name: m.name, k: m.k, p: m.p, c: m.c, f: m.f, ...(m.items ? { items: m.items } : {}) });
@@ -574,22 +601,29 @@ function editMeal(id) {
 }
 function rmMeal(id) { S.meals = S.meals.filter(m => m.id !== id); save(); renderFood(); }
 
-// ===== شيت تسجيل وجبة: تكتب أكلت إيه بالظبط والتطبيق يحسب =====
-const FB = { items: [], slot: 'b', edit: null };
+// ===== شيت تسجيل وجبة =====
+const FB = { items: [], slot: 'b', edit: null, cat: '' };
 function openBuilder(items = [], slot = defaultSlot(), edit = null) {
-  Object.assign(FB, { items: items.map(x => ({ ...x })), slot, edit });
+  Object.assign(FB, { items: items.map(x => ({ ...x })), slot, edit, cat: '' });
   openSheet(`<div class="grip"></div><h3>${edit ? 'تعديل الوجبة' : 'سجّل وجبة'}</h3>
     <div class="chips" id="fb-slot" style="margin:10px 0"></div>
     <div id="fb-items"></div>
     <div class="card" style="margin:10px 0;background:var(--card2);padding:12px" id="fb-tot"></div>
-    <input id="fb-q" placeholder="ابحث عن أكل وضيفه… (بيض، فراخ، رز…)" oninput="renderFbList()">
-    <div id="fb-list" style="max-height:34vh;overflow:auto"></div>
-    <details style="margin-top:12px"><summary class="mute">أكل مش موجود في القائمة؟ اكتبه بنفسك</summary>
+    <button class="p w" style="padding:14px" id="fb-save" onclick="saveBuilder()"></button>
+    <div class="row" style="margin-top:14px">
+      <input id="fb-q" type="search" placeholder="ابحث: طماطم، فراخ، كشري… أو رقم الباركود" oninput="renderFbList()">
+      ${'BarcodeDetector' in window ? '<button class="fit" onclick="scanBarcode()" aria-label="امسح باركود">📷</button>' : ''}
+    </div>
+    <div id="fb-scan"></div>
+    <div class="chips" id="fb-cats" style="margin:10px 0 4px"></div>
+    <div id="fb-list" style="max-height:40vh;overflow:auto"></div>
+    <details id="fb-new" style="margin-top:12px"><summary class="mute">صنف مش موجود؟ ضيفه لـ"أكلاتي" مرة واحدة</summary>
       <input id="fm-n" placeholder="اسم الأكل" style="margin:8px 0">
+      <div class="row" style="margin-bottom:8px"><label class="fit" style="margin:0">القيم دي لكل</label>
+        <select id="fm-per"><option value="100">100 جم</option><option value="1">حصة واحدة</option></select></div>
       <div class="grid4"><div><label>سعرات</label><input type="number" id="fm-k"></div><div><label>بروتين</label><input type="number" id="fm-p"></div><div><label>كارب</label><input type="number" id="fm-c"></div><div><label>دهون</label><input type="number" id="fm-f"></div></div>
-      <button class="w" style="margin-top:8px" onclick="addCustom()">ضيفه للوجبة</button>
+      <button class="w" style="margin-top:8px" onclick="addMyFood()">احفظ وضيفه للوجبة</button>
     </details>
-    <button class="p w" style="margin-top:14px;padding:14px" id="fb-save" onclick="saveBuilder()"></button>
     ${edit ? `<button class="g w del" style="margin-top:6px" onclick="rmMeal('${edit}');closeSheet()">حذف الوجبة</button>` : ''}`);
   renderBuilder();
 }
@@ -597,45 +631,132 @@ function renderBuilder() {
   $('fb-slot').innerHTML = Object.entries(SLOTS).map(([k, l]) => `<button class="chip ${FB.slot === k ? 'on' : ''}" onclick="FB.slot='${k}';renderBuilder()">${l}</button>`).join('');
   $('fb-items').innerHTML = FB.items.map((it, i) => {
     const m = itemMacros(it);
-    if (it.c) return `<div class="fb-it"><div><b>${esc(it.c.n)}</b><div class="mute">${m.k} سعرة · بروتين ${m.p}</div></div><button class="g del" onclick="fbRm(${i})" aria-label="شيل">✕</button></div>`;
-    const f = foodById(it.id), step = f.b === 100 ? 25 : 1;
-    return `<div class="fb-it"><div style="flex:1;min-width:0"><b>${f.n}</b><div class="mute" id="fb-m${i}">${m.k} سعرة · بروتين ${m.p}</div></div>
-      <div class="stepper"><button onclick="fbQ(${i},-${step})" aria-label="أقل">−</button><input type="number" inputmode="decimal" value="${it.q}" oninput="fbSet(${i},this.value)"><button onclick="fbQ(${i},${step})" aria-label="أكتر">+</button></div>
-      <span class="mute" style="width:42px;text-align:center;font-size:12px">${f.u}</span>
+    if (it.c || !foodById(it.id)) return `<div class="fb-it"><div style="flex:1"><b>${esc(itemName(it))}</b><div class="mute">${m.k} سعرة · بروتين ${m.p}</div></div><button class="g del" onclick="fbRm(${i})" aria-label="شيل">✕</button></div>`;
+    const f = foodById(it.id), step = it.u >= 0 ? 1 : 25;
+    return `<div class="fb-it"><div style="flex:1;min-width:0"><b>${esc(f.n)}</b><div class="mute" id="fb-m${i}">${m.k} سعرة · بروتين ${m.p} · ${Math.round(gramsOf(it))} جم</div></div>
+      <div class="stepper"><button onclick="fbQ(${i},-${step})" aria-label="أقل">−</button><input type="number" inputmode="decimal" value="${num(it.q)}" oninput="fbSet(${i},this.value)"><button onclick="fbQ(${i},${step})" aria-label="أكتر">+</button></div>
+      <select class="unit" onchange="fbU(${i},+this.value)" aria-label="الوحدة">${f.por.map((p, j) => `<option value="${j}" ${it.u === j ? 'selected' : ''}>${esc(p[0])}</option>`).join('')}<option value="-1" ${it.u < 0 ? 'selected' : ''}>جم</option></select>
       <button class="g del" onclick="fbRm(${i})" aria-label="شيل">✕</button></div>`;
-  }).join('') || '<p class="mute" style="margin:6px 0">ابحث تحت وضيف كل حاجة أكلتها وكميتها.</p>';
+  }).join('') || '<p class="mute" style="margin:6px 0">ابحث تحت وضيف كل حاجة أكلتها، وظبّط الكمية بالحصة أو بالجرام.</p>';
+  $('fb-cats').innerHTML = [['', 'الكل'], ['my', 'أكلاتي'], ...Object.entries(FOOD_CATS)].map(([k, l]) => `<button class="chip ${FB.cat === k ? 'on' : ''}" onclick="FB.cat='${k}';renderBuilder()">${l}</button>`).join('');
   renderFbTot(); renderFbList();
 }
 function renderFbTot() {
   const s = sumMacros(FB.items);
-  $('fb-tot').innerHTML = `<div class="grid4" style="text-align:center"><div class="stat"><b class="acc" style="text-align:center">${s.k}</b><span>سعرة</span></div><div class="stat"><b class="blue" style="text-align:center">${Math.round(s.p)}</b><span>بروتين</span></div><div class="stat"><b class="amber" style="text-align:center">${Math.round(s.c)}</b><span>كارب</span></div><div class="stat"><b class="pink" style="text-align:center">${Math.round(s.f)}</b><span>دهون</span></div></div>`;
+  const c = (v, l, cl) => `<div class="stat"><b class="${cl}" style="text-align:center">${Math.round(v)}</b><span>${l}</span></div>`;
+  $('fb-tot').innerHTML = `<div class="grid4" style="text-align:center">${c(s.k, 'سعرة', 'acc')}${c(s.p, 'بروتين', 'blue')}${c(s.c, 'كارب', 'amber')}${c(s.f, 'دهون', 'pink')}</div>`;
   $('fb-save').textContent = FB.items.length ? `${FB.edit ? 'احفظ التعديل' : 'سجّل الوجبة'} · ${s.k} سعرة` : 'ضيف أكل الأول';
 }
-function renderFbList() {
-  const q = ($('fb-q').value || '').trim();
-  $('fb-list').innerHTML = FOODS.filter(f => !q || f.n.includes(q)).map(f =>
-    `<div class="food-it" onclick="fbAdd('${f.id}')"><span>${f.n}</span><span class="mute">${f.k} سعرة / ${f.b === 1 ? f.u : '100 جم'} <b class="acc">+</b></span></div>`).join('')
-    || '<p class="mute">مش لاقيه؟ اكتبه بنفسك تحت.</p>';
+function foodRow(f) {
+  const hint = f.por[0] ? ` · ${esc(f.por[0][0])} ≈ ${Math.round(f.k * f.por[0][1] / 100)}` : '';
+  return `<div class="food-it" onclick="fbAdd('${f.id}')"><div><div>${esc(f.n)}${f.src ? ` <span class="tag">${f.src}</span>` : ''}</div><div class="mute" style="font-size:12px">${f.k} سعرة · ${f.p} ب / 100 جم${hint}</div></div><b class="acc" style="font-size:20px">+</b></div>`;
 }
-function fbAdd(id) { const f = foodById(id), ex = FB.items.find(x => x.id === id); if (ex) ex.q += f.b === 100 ? 50 : 1; else FB.items.push({ id, q: f.d }); $('fb-q').value = ''; vib(8); renderBuilder(); }
+function renderFbList() {
+  const raw = ($('fb-q').value || '').trim(), q = normAr(raw), my = S.myFoods || [];
+  let h = '';
+  if (/^\d{8,14}$/.test(raw)) { $('fb-list').innerHTML = `<button class="w" onclick="lookupBarcode('${raw}')">🔎 دوّر على الباركود ${raw}</button>`; return; }
+  if (q) {
+    const scored = [...my, ...FOODS].map(f => {
+      const n = normAr(f.n), a = normAr(f.al);
+      const s = n.startsWith(q) ? 3 : n.includes(q) ? 2 : a.split(' ').some(w => w.startsWith(q)) ? 1.5 : a.includes(q) ? 1 : 0;
+      return [s, f];
+    }).filter(x => x[0]).sort((a, b) => b[0] - a[0]).slice(0, 40);
+    h = scored.map(x => foodRow(x[1])).join('');
+    h += `<button class="w" style="margin-top:10px" onclick="searchOnline()">🌐 ${scored.length ? 'مش لاقي اللي عايزه؟ ' : ''}دوّر أونلاين على "${esc(raw)}"</button><div id="fb-online"></div>`;
+    if (!scored.length) h = '<p class="mute">مش لاقيه في القائمة. دوّر أونلاين (للمنتجات المعبّأة) أو ضيفه لـ"أكلاتي" تحت.</p>' + h;
+  } else if (FB.cat === 'my') {
+    h = my.map(foodRow).join('') || '<p class="mute">لسه مضفتش أكلات خاصة بيك. ضيف من تحت، أو دوّر أونلاين وهتتحفظ هنا.</p>';
+  } else if (FB.cat) {
+    h = FOODS.filter(f => f.cat === FB.cat).map(foodRow).join('');
+  } else {
+    const used = [], seen = new Set();
+    for (let i = S.meals.length - 1; i >= 0 && used.length < 10; i--) (S.meals[i].items || []).forEach(it => { if (it.id && !seen.has(it.id) && foodById(it.id)) { seen.add(it.id); used.push(foodById(it.id)); } });
+    h = (used.length ? `<div class="mute" style="margin:6px 0 2px">استخدمتهم قريب</div>${used.map(foodRow).join('')}<div class="mute" style="margin:12px 0 2px">كل الأكل (${FOODS.length + my.length} صنف)</div>` : '')
+      + [...my, ...FOODS].filter(f => !seen.has(f.id)).slice(0, 60).map(foodRow).join('');
+  }
+  $('fb-list').innerHTML = h;
+}
+function fbAdd(id) {
+  const f = foodById(id), ex = FB.items.find(x => x.id === id);
+  if (ex) ex.q = num(ex.q + (ex.u >= 0 ? 1 : 50));
+  else FB.items.push(f.por.length ? { id, q: 1, u: 0 } : { id, q: 100, u: -1 });
+  $('fb-q').value = ''; vib(8); renderBuilder(); $('sheet-c').scrollTo({ top: 0, behavior: 'smooth' });
+}
 function fbQ(i, d) { const it = FB.items[i]; it.q = Math.max(0, num(it.q + d)); renderBuilder(); }
-function fbSet(i, v) { FB.items[i].q = +v || 0; const m = itemMacros(FB.items[i]); $('fb-m' + i).textContent = `${m.k} سعرة · بروتين ${m.p}`; renderFbTot(); }
+function fbSet(i, v) { const it = FB.items[i]; it.q = +v || 0; const m = itemMacros(it); $('fb-m' + i).textContent = `${m.k} سعرة · بروتين ${m.p} · ${Math.round(gramsOf(it))} جم`; renderFbTot(); }
+function fbU(i, u) { const it = FB.items[i], g = gramsOf(it), f = foodById(it.id); it.u = u; it.q = u < 0 ? Math.round(g) : num(Math.max(0.5, g / f.por[u][1])); renderBuilder(); }
 function fbRm(i) { FB.items.splice(i, 1); renderBuilder(); }
-function addCustom() {
-  const n = $('fm-n').value.trim(), k = +$('fm-k').value || 0;
-  if (!n || !k) return toast('اكتب الاسم والسعرات');
-  FB.items.push({ c: { n, k, p: +$('fm-p').value || 0, c: +$('fm-c').value || 0, f: +$('fm-f').value || 0 } });
+function addMyFood() {
+  const n = $('fm-n').value.trim(), k = +$('fm-k').value;
+  if (!n || !$('fm-k').value) return toast('اكتب الاسم والسعرات');
+  const per = +$('fm-per').value, f = { id: 'my:' + uid(), n, al: '', cat: 'my', k, p: +$('fm-p').value || 0, c: +$('fm-c').value || 0, f: +$('fm-f').value || 0, por: per === 1 ? [['حصة', 100]] : [], src: 'أكلاتي' };
+  S.myFoods = [f, ...(S.myFoods || [])]; save();
   ['n', 'k', 'p', 'c', 'f'].forEach(x => $('fm-' + x).value = '');
-  renderBuilder();
+  $('fb-new').open = false; fbAdd(f.id); toast('اتحفظ في أكلاتي ✓');
 }
 function saveBuilder() {
   const items = FB.items.filter(it => it.c || it.q > 0);
   if (!items.length) return toast('ضيف أكل الأول');
   const e = entryFromItems(items, FB.slot);
-  if (FB.edit) Object.assign(S.meals.find(m => m.id === FB.edit), e), save();
+  if (FB.edit) { Object.assign(S.meals.find(m => m.id === FB.edit), e); save(); }
   else addMealEntry(e);
   closeSheet(); toast(FB.edit ? 'اتعدّلت ✓' : 'اتسجّلت ✓'); renderFood();
 }
+
+// ===== البحث أونلاين والباركود (Open Food Facts: قاعدة بيانات مفتوحة ومجانية) =====
+const OFF = 'https://world.openfoodfacts.org';
+const OFF_FIELDS = 'code,product_name,product_name_ar,brands,nutriments,serving_quantity';
+function offToFood(p) {
+  const n = p.nutriments || {}, k = n['energy-kcal_100g'] ?? (n['energy_100g'] ? n['energy_100g'] / 4.184 : null);
+  if (k == null) return null;
+  const name = [p.product_name_ar || p.product_name, p.brands && p.brands.split(',')[0]].filter(Boolean).join(' - ');
+  if (!name) return null;
+  const sq = parseFloat(p.serving_quantity);
+  return { id: 'off:' + p.code, n: name, al: '', cat: 'my', k: Math.round(k), p: num(n.proteins_100g || 0), c: num(n.carbohydrates_100g || 0), f: num(n.fat_100g || 0), por: sq > 0 ? [['حصة', sq]] : [], src: 'أونلاين' };
+}
+function keepFood(f) { if (!foodById(f.id)) { S.myFoods = [f, ...(S.myFoods || [])]; save(); } }
+let offResults = [];
+async function searchOnline() {
+  const q = $('fb-q').value.trim(), box = $('fb-online');
+  if (!q) return;
+  if (!navigator.onLine) { box.innerHTML = '<p class="mute">محتاج نت عشان البحث أونلاين.</p>'; return; }
+  box.innerHTML = '<p class="mute">بدوّر…</p>';
+  try {
+    const r = await fetch(`${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${OFF_FIELDS}`);
+    offResults = ((await r.json()).products || []).map(offToFood).filter(Boolean);
+    box.innerHTML = offResults.length ? '<div class="mute" style="margin:10px 0 2px">نتايج أونلاين (القيم لكل 100 جم من على العبوة)</div>' +
+      offResults.map((f, i) => `<div class="food-it" onclick="pickOnline(${i})"><div><div>${esc(f.n)}</div><div class="mute" style="font-size:12px">${f.k} سعرة · ${f.p} ب / 100 جم</div></div><b class="acc" style="font-size:20px">+</b></div>`).join('')
+      : '<p class="mute">ملقتش نتايج. جرّب اسم تاني أو بالإنجليزي، أو ضيفه بنفسك.</p>';
+  } catch { box.innerHTML = '<p class="mute">البحث مش شغال دلوقتي. جرّب تاني بعد شوية.</p>'; }
+}
+function pickOnline(i) { const f = offResults[i]; keepFood(f); fbAdd(f.id); }
+async function lookupBarcode(code) {
+  const box = $('fb-list');
+  box.innerHTML = '<p class="mute">بدوّر على المنتج…</p>';
+  try {
+    const r = await (await fetch(`${OFF}/api/v2/product/${code}.json?fields=${OFF_FIELDS}`)).json();
+    const f = r.status === 1 && offToFood({ ...r.product, code });
+    if (!f) { box.innerHTML = '<p class="mute">المنتج ده مش موجود أو ملوش قيم غذائية. ضيفه بنفسك من تحت.</p>'; return; }
+    keepFood(f); fbAdd(f.id); toast(`لقيته: ${f.n}`);
+  } catch { box.innerHTML = '<p class="mute">محتاج نت عشان تدوّر بالباركود.</p>'; }
+}
+let scanStream = null;
+async function scanBarcode() {
+  const box = $('fb-scan');
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    box.innerHTML = '<div style="position:relative;margin-top:10px"><video id="fb-vid" playsinline muted style="width:100%;border-radius:14px"></video><button class="sm" style="position:absolute;top:8px;left:8px" onclick="stopScan()">✕</button></div>';
+    const v = $('fb-vid'); v.srcObject = scanStream; await v.play();
+    const det = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] });
+    const loop = async () => {
+      if (!scanStream) return;
+      try { const c = await det.detect(v); if (c.length) { const code = c[0].rawValue; stopScan(); vib(40); $('fb-q').value = code; return lookupBarcode(code); } } catch {}
+      requestAnimationFrame(loop);
+    };
+    loop();
+  } catch { toast('مقدرتش أفتح الكاميرا. اكتب رقم الباركود بدالها.'); }
+}
+function stopScan() { if (scanStream) scanStream.getTracks().forEach(t => t.stop()); scanStream = null; const b = $('fb-scan'); if (b) b.innerHTML = ''; }
 
 // ================= التقدم =================
 function lineChart(pts, trend) {
@@ -674,7 +795,7 @@ function renderProg() {
       <b class="ltr" style="font-weight:600">${num(val)}</b></div>`;
   }).join('');
 
-  const ids = [...new Set(S.workouts.flatMap(w => w.ex.map(e => e.id)))];
+  const ids = [...new Set(S.workouts.flatMap(w => w.ex.map(e => e.id)))].filter(id => !isCardio(id));
   const cur = $('p-ex').value;
   $('p-ex').innerHTML = ids.map(id => `<option value="${esc(id)}" ${id === cur ? 'selected' : ''}>${esc(exInfo(id).ar)}</option>`).join('') || '<option>لسه مفيش تمارين</option>';
   renderExChart();
@@ -751,7 +872,8 @@ function resetAll() {
 
 // ================= شيت =================
 function openSheet(h) { $('sheet-c').innerHTML = h; const d = $('sheet'); if (!d.open) d.showModal(); }
-function closeSheet() { $('sheet').close(); }
+function closeSheet() { if (typeof stopScan === 'function') stopScan(); $('sheet').close(); }
 
+$('sheet').addEventListener('close', () => stopScan());
 go('home');
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
