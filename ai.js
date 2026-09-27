@@ -86,10 +86,10 @@ function foodCandidates(text) {
 // الوجبة من كلامك: "على الغدا" / "فطرت" …
 function slotFromText(t) {
   t = normAr(t);
-  if (/فطار|فطرت|الصبح/.test(t)) return 'b';
+  if (/فطار|فطور|فطرت|الصبح/.test(t)) return 'b';
   if (/غدا|اتغديت/.test(t)) return 'l';
   if (/عشا|اتعشيت|بالليل/.test(t)) return 'd';
-  if (/سناك|تصبيره/.test(t)) return 's';
+  if (/سناك|تصبير|بين الوجبات/.test(t)) return 's';
   return null;
 }
 
@@ -102,10 +102,11 @@ const strongWord = w => { w = stripAl(normAr(w)); return w.length >= 2 && [...(S
 // لو الاسم كله مش لاقيه، نجرّب نشيل كلمات زيادة من الآخر
 function bestFood(ws) {
   for (let n = ws.length; n >= 1; n--) { const f = searchFoods(ws.slice(0, n).join(' '))[0]; if (f) return f; }
+  for (let i = 1; i < ws.length; i++) { const f = searchFoods(ws.slice(i).join(' '))[0]; if (f) return f; }
   return null;
 }
 function localParse(text) {
-  const raw = normAr(text).replace(/(\d)([^\d\s.])/g, '$1 $2');
+  const raw = normAr(text).replace(/[:؛;!?؟.…"'()]/g, ' ').replace(/(\d)([^\d\s.])/g, '$1 $2');
   // نقسّم على الفواصل و"مع"، وعلى "و" اللي في أول الكلمة لو اللي بعدها أكل
   const parts = [];
   raw.split(/[،,+\n]|\sمع\s|\sو\s/).forEach(chunk => {
@@ -128,7 +129,12 @@ function localParse(text) {
       else if (UNITW.includes(bare)) unit = bare;
       else if (SIZEW.includes(bare) && rest.length) size = bare.slice(0, 3);
       else if (bare.length > 3 && bare.endsWith('ين') && UNITW.some(u => u.startsWith(bare.slice(0, -2).replace(/ت$/, 'ه')) || u.startsWith(bare.slice(0, -2)))) { unit = bare.slice(0, -2); qty = (qty || 1) * 2; }
-      else if (/^(اكلت|كلت|فطرت|اتغديت|اتعشيت|شربت|علي|على|غدا|فطار|عشا|سناك|حوالي|تقريبا|من|في|النهارده|انهارده)$/.test(bare)) {}
+      else if (bare.length > 3 && bare.endsWith('ين') && !UNITW.some(u => u.startsWith(bare.slice(0, -2).replace(/ت$/, 'ه')))) {
+        // مثنى الأكل نفسه: "موزتين" = 2 موز، "تفاحتين" = 2 تفاح
+        const base = [bare.slice(0, -2).replace(/ت$/, 'ه'), bare.slice(0, -2).replace(/ت$/, ''), bare.slice(0, -2)].find(strongWord);
+        if (base) { qty = (qty || 1) * 2; rest.push(base); } else rest.push(w);
+      }
+      else if (/^(اكلت|كلت|فطرت|اتغديت|اتعشيت|شربت|علي|على|غدا|غداء|للغدا|للغداء|فطار|فطور|للفطار|عشا|عشاء|للعشا|للعشاء|سناك|للسناك|وجبه|حوالي|تقريبا|من|في|النهارده|انهارده|ضيف|ضيفهم|ضيفها|ضيفلي|حط|حطهم|سجل|سجلهم|سجلها|دول|ده|دي)$/.test(bare)) {}
       else rest.push(w);
     });
     // "بيضتين" أو "رغيفين": الوحدة هي نفسها الأكل
@@ -161,7 +167,7 @@ async function aiParseFood() {
   const done = (items, note) => {
     FB.items.push(...items); box.value = ''; renderBuilder();
     $('ai-out').innerHTML = note || '';
-    toast(`اتضاف ${items.length} أصناف. راجعهم وسجّل`);
+    toast(`اتضاف ${items.length} أصناف في ${SLOTS[FB.slot]}. راجعهم وسجّل`);
     $('sheet-c').scrollTo({ top: 0, behavior: 'smooth' });
   };
   const missedNote = m => m.length ? `<p class="mute" style="font-size:13px;margin:6px 0">مش لاقي: <b>${m.map(esc).join('، ')}</b>. دوّر عليه تحت أو ضيفه لأكلاتي.</p>` : '';
@@ -174,7 +180,7 @@ async function aiParseFood() {
     const cands = foodCandidates(txt);
     const list = cands.map(f => `${f.id}|${f.n}|${f.por.map(p => p[0] + ' ' + p[1] + 'جم').join('،') || '-'}`).join('\n');
     const r = await callAI([
-      { role: 'system', content: 'أنت مساعد تغذية مصري. حوّل وصف الأكل بالعامية المصرية لقائمة أصناف. استخدم الـ id من القائمة لو الصنف موجود، ولو الأكل مطبوخ اختار الصنف المطبوخ مش الني. الكمية بالحصة المكتوبة في القائمة أو بالجرام، ولو الكمية مش مذكورة خمّن حصة عادية لشخص واحد. لو صنف مش موجود خالص حط id=null واكتب اسمه ووزنه التقريبي بالجرام وتقدير سعرات وبروتين وكارب ودهون للكمية دي. رد بـ JSON بس: {"items":[{"id":"rice_egy","qty":1,"unit":"طبق","name":"رز بالشعرية","grams":null,"est":null}]} والوحدة يا إما اسم حصة من القائمة يا إما "جم". متخترعش أصناف مش مذكورة.' },
+      { role: 'system', content: 'أنت مساعد تغذية مصري. حوّل وصف الأكل بالعامية المصرية لقائمة أصناف. استخدم الـ id من القائمة لو الصنف موجود، الأكل اللي بيتاكل مطبوخ اختارله الصنف المكتوب عليه (مطبوخ) أو المطبوخ، واستخدم الصنف (ني) بس لو الكلام قال صراحة إنه ني أو اتوزن قبل الطبخ. الكمية بالحصة المكتوبة في القائمة أو بالجرام، ولو الكمية مش مذكورة خمّن حصة عادية لشخص واحد. لو صنف مش موجود خالص حط id=null واكتب اسمه ووزنه التقريبي بالجرام وتقدير سعرات وبروتين وكارب ودهون للكمية دي. رد بـ JSON بس: {"items":[{"id":"rice_egy","qty":1,"unit":"طبق","name":"رز بالشعرية","grams":null,"est":null}]} والوحدة يا إما اسم حصة من القائمة يا إما "جم". متخترعش أصناف مش مذكورة.' },
       { role: 'user', content: `القائمة (id|الاسم|الحصص):\n${list}\n\nالكلام: ${txt}` }
     ], { maxTokens: 600 });
     const saved = [];
@@ -260,7 +266,8 @@ function aiFoodBlock() {
       ${aiOn() ? `<button onclick="$('ai-cam').click()">📷 صوّر جدول القيم</button>` : ''}</div>
     ${aiOn() ? '' : '<p class="mute" style="margin:6px 0 0;font-size:12px">شغال من غير AI بفهم بسيط. مع مفتاح AI (من الإعدادات) بيفهم أي كلام وبيقدّر الأكل المش موجود.</p>'}
     <input type="file" id="ai-cam" accept="image/*" capture="environment" class="hide" onchange="aiLabel(this)">
-    <div id="ai-out"></div></div>`;
+    <div id="ai-out"></div></div>
+    <p class="mute" style="font-size:12px;margin:-2px 0 10px">⚖️ لو بتوزن بالجرام: اختار <b>(ني)</b> لو وزنت قبل الطبخ، و<b>(مطبوخ)</b> لو وزنت بعده. 100 جم رز ني بتبقى حوالي 300 جم مطبوخ، فالفرق في السعرات كبير. ولو بتسجّل بالطبق أو الكوباية، اختار المطبوخ.</p>`;
 }
 // من صفحة الأكل على طول: تكتب وتدوس، وتفتح الوجبة جاهزة
 function quickLog() {
