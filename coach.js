@@ -101,7 +101,13 @@ function runCheckin(ws, silent) {
     changes.push({ icon: '🔄', t: 'الأسبوع ده بقى أسبوع خفيف', why: `متوسط جاهزيتك (النوم والطاقة والعضلات) كان قليل الأسبوع اللي فات. أسبوع خفيف دلوقتي هيرجّعك أقوى، أحسن من إنك تكمّل وانت مرهق.` });
   }
 
-  // ---- 5) ملاحظات من غير تعديل ----
+  // ---- 5) Diet break: بعد تنشيف طويل، أسبوع على الثبات بيرجّع الطاقة والهرمونات ----
+  if (p.goal === 'cut' && S.weights[0]) {
+    const wks = Math.floor(dayDiff(S.weights[0].date, today()) / 7), lastBreak = S.checkins.filter(x => x.dietBreak).at(-1);
+    if (wks >= 10 && (!lastBreak || dayDiff(lastBreak.week, ws) >= 70)) notes.push(`بقالك ${wks} أسبوع في تنشيف. فكّر تاخد أسبوع أكل على الثبات (Diet break): غيّر الهدف لـ"ثبات" أسبوع واحد من الإعدادات، وبعدين ارجع "تنشيف". ده بيرجّع طاقتك في التمرين ويسهّل الالتزام، ومش هيضيّع اللي خسرته.`);
+  }
+
+  // ---- 6) ملاحظات من غير تعديل ----
   if (st.logged && st.pHit < st.logged * 0.6) notes.push(`البروتين اتحقق ${st.pHit} من ${st.logged} أيام. ده أهم رقم يحمي عضلك في التنشيف.`);
 
   if (changes.some(c => /اتبدّل|مجموعة/.test(c.t))) S.program = programState();

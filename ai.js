@@ -245,3 +245,67 @@ async function testAI() {
     st.textContent = r.ok ? `✓ الاتصال شغال بـ ${aiModel()}.${bal}` : 'الموديل رد بس بشكل غريب. جرّب موديل تاني.';
   } catch (e) { st.textContent = '✗ ' + aiErrText(e); }
 }
+
+// ===== 4) اسأل المدرب: أسئلة عن بياناتك انت (مش شات عام) =====
+// بنبعت ملخص صغير لبياناتك مع كل سؤال، والمحادثة مش بتتحفظ عشان التكلفة تفضل قليلة
+let coachChat = [];
+function coachContext() {
+  const tg = targets(), ws = weekStart(today()), a = weekStats(addDays(ws, -7)), b = weekStats(ws), tot = mealTotals(today()), rec = recovery();
+  const recent = S.workouts.slice(-6).map(w => ({ d: w.date, n: w.name, top: w.ex.filter(e => !isCardio(e.id)).slice(0, 4).map(e => { const s = e.sets.reduce((x, y) => e1rm(y.w, y.r) > e1rm(x.w, x.r) ? y : x, e.sets[0]); return `${exInfo(e.id).ar} ${s.w}×${s.r}`; }) }));
+  return {
+    today: today(), goal: GOALS[S.profile.goal].ar, height: S.profile.h, bodyfat_start: S.profile.bf,
+    weight_trend: num(curWeight()), weekly_rate: weeklyRate() != null ? num(weeklyRate()) : null, goal_weight: S.profile.goalW || null,
+    targets: { kcal: tg.kcal, protein: tg.pro, carbs: tg.carb, fat: tg.fat, steps: S.profile.stepsGoal },
+    today_eaten: { kcal: tot.k, protein: Math.round(tot.p) }, next_workout: PROGRAM[nextKey()].name,
+    last_week: { score: a.score, workouts: a.workouts, avg_kcal: a.avgK && Math.round(a.avgK), avg_protein: a.avgP && Math.round(a.avgP), steps: a.stepsAvg && Math.round(a.stepsAvg) },
+    this_week: { score: b.score, workouts: b.workouts },
+    plateaus: plateaus().map(x => exInfo(x.id).ar), tired_muscles: Object.keys(rec).filter(m => rec[m] < 50).map(m => MUSCLES[m]),
+    recent_workouts: recent, expenditure: expenditure().tdee || null
+  };
+}
+function openCoach() {
+  if (!aiOn()) return toast(AI_MSG.nokey);
+  const quick = ['ليه وزني مش بينزل أسرع؟', 'آكل إيه باقي النهارده؟', 'إزاي أكسر الثبات في تمرين واقف؟', 'أسبوعي كان عامل إزاي؟'];
+  openSheet(`<div class="grip"></div><h3>اسأل المدرب ✨</h3>
+    <p class="mute" style="margin:0 0 10px">بيرد على أسئلتك بناءً على أكلك وتمارينك ووزنك انت.</p>
+    <div id="co-log" style="max-height:45vh;overflow:auto">${coachChat.map(m => `<div class="${m.role === 'user' ? 'tag' : 'banner'}" style="display:block;margin:6px 0;white-space:pre-line;${m.role === 'user' ? 'font-size:14px;padding:8px 12px' : ''}">${esc(m.content)}</div>`).join('')}</div>
+    <div class="chips" style="margin:8px 0;flex-wrap:wrap">${quick.map(q => `<button class="chip" onclick="askCoach(this.textContent)">${q}</button>`).join('')}</div>
+    <div class="row"><input id="co-in" placeholder="اكتب سؤالك…" onkeydown="if(event.key==='Enter')askCoach()"><button class="p fit" id="co-go" onclick="askCoach()">اسأل</button></div>`);
+  const log = $('co-log'); log.scrollTop = log.scrollHeight;
+}
+async function askCoach(q) {
+  q = (q || $('co-in').value || '').trim(); if (!q || aiBusy) return;
+  aiBusy = true; coachChat.push({ role: 'user', content: q }); openCoach();
+  $('co-go').disabled = true; $('co-go').textContent = '…';
+  try {
+    const ans = await callAI([
+      { role: 'system', content: 'أنت مدرب لياقة وتغذية مصري محترف. رد بالعامية المصرية، مختصر وعملي (أقل من 120 كلمة)، واعتمد على بيانات المتدرب اللي في JSON. لو السؤال عن أكل اقترح أكل مصري رخيص. متخترعش أرقام مش موجودة، ولو معلومة ناقصة قول كده. لو في عرض طبي زي ألم حاد انصحه يروح لدكتور.\nبيانات المتدرب: ' + JSON.stringify(coachContext()) },
+      ...coachChat.slice(-6)
+    ], { maxTokens: 450, json: false });
+    coachChat.push({ role: 'assistant', content: ans.trim() || 'مفيش رد، جرّب تاني.' });
+  } catch (e) { coachChat.push({ role: 'assistant', content: '⚠️ ' + aiErrText(e) }); }
+  aiBusy = false; if ($('sheet').open) openCoach();
+}
+
+// ===== 5) اقترح وجبة تكمّل يومي من الأكل الرخيص =====
+async function aiSuggestMeal() {
+  if (aiBusy) return; aiBusy = true;
+  const box = $('ai-meal'), d = fDate(), tg = targets(), tot = mealTotals(d);
+  const left = Math.max(200, tg.kcal - tot.k), pLeft = Math.max(0, Math.round(tg.pro - tot.p));
+  box.innerHTML = '<p class="mute">بفكّر في وجبة…</p>';
+  const cands = [...new Set([...FOODS.filter(f => POPULAR.has(f.id)), ...PROTEIN_PICKS.map(p => foodById(p[0])), ...['veg', 'salad', 'lentil', 'liver', 'sardine', 'greek_yog', 'lupin', 'sweetpot', 'pasta', 'oats', 'milk_low', 'egg_white', 'thigh', 'tilapia'].map(foodById)].filter(Boolean))];
+  try {
+    const r = await callAI([
+      { role: 'system', content: 'أنت أخصائي تغذية مصري. اقترح وجبة واحدة رخيصة وسهلة من القائمة بس، بحيث تقرّب من السعرات والبروتين الفاضلين من غير ما تعدّيهم كتير. رد بـ JSON بس: {"title":"اسم الوجبة","items":[{"id":"...","qty":1,"unit":"اسم حصة أو جم"}],"why":"جملة واحدة ليه"}' },
+      { role: 'user', content: `فاضل: ${left} سعرة و${pLeft} جم بروتين. الوقت: ${new Date().getHours()}:00.\nالقائمة (id|الاسم|سعرات/100جم|بروتين/100جم|الحصص):\n${cands.map(f => `${f.id}|${f.n}|${f.k}|${f.p}|${f.por.map(p => p[0] + ' ' + p[1] + 'جم').join('،')}`).join('\n')}` }
+    ], { maxTokens: 350 });
+    const items = (r.items || []).map(x => { const f = foodById(x.id); if (!f) return null; const u = /^(جم|جرام|g)/i.test(x.unit || '') ? -1 : Math.max(0, f.por.findIndex(p => p[0] === x.unit)); return { id: f.id, q: +x.qty || 1, u: f.por.length ? u : -1 }; }).filter(Boolean);
+    if (!items.length) throw new AIError('parse');
+    const m = sumMacros(items); window._aiMeal = { items, slot: defaultSlot() };
+    box.innerHTML = `<div class="card" style="padding:12px;margin:10px 0 0"><b>${esc(r.title || 'اقتراح')}</b>
+      <div class="mute" style="margin:4px 0">${items.map(itemName).map(esc).join(' + ')}</div>
+      <div style="font-size:14px">${m.k} سعرة و${Math.round(m.p)} جم بروتين</div>${r.why ? `<div class="mute" style="margin-top:4px">${esc(r.why)}</div>` : ''}
+      <div class="row" style="margin-top:10px"><button class="p" onclick="openBuilder(_aiMeal.items, _aiMeal.slot)">عدّل وسجّل</button><button onclick="aiSuggestMeal()">اقتراح تاني</button></div></div>`;
+  } catch (e) { box.innerHTML = `<p class="warn" style="font-size:13px">${aiErrText(e)}</p>`; }
+  aiBusy = false;
+}

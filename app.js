@@ -98,7 +98,8 @@ function targets() {
   const p = S.profile, w = curWeight(), lbm = w * (1 - p.bf / 100);
   const bmr = 370 + 21.6 * lbm; // Katch-McArdle
   const tdee = bmr * p.act;
-  const kcal = r50(tdee * (1 + GOALS[p.goal].d) + (+p.adj || 0));
+  // أمان: مفيش هدف أقل من 1600 سعرة أو من حرقك الأساسي، مهما حصل
+  const kcal = Math.max(1600, r50(bmr * 1.1), r50(tdee * (1 + GOALS[p.goal].d) + (+p.adj || 0)));
   const pro = r5((p.goal === 'cut' ? 2.5 : 2.2) * lbm), fat = r5(0.8 * w);
   return { w, lbm, tdee, kcal, pro, fat, carb: Math.max(0, r5((kcal - pro * 4 - fat * 9) / 4)) };
 }
@@ -327,6 +328,8 @@ function renderHome() {
   const sg = S.profile.stepsGoal || 10000;
   $('h-stepsbar').innerHTML = `<div class="row"><span class="mute">الخطوات: <b class="num" style="font-weight:600">${st.toLocaleString('en')}</b> من ${sg.toLocaleString('en')}</span></div><div class="bar" style="--c:var(--green)"><i style="width:${pct(st, sg)}"></i></div>`;
   $('h-checkin').innerHTML = checkinCard();
+  $('h-ask').innerHTML = aiOn() ? '<button class="sm" onclick="openCoach()">✨ اسأل المدرب</button>' : '';
+  checkBadges();
 
   const rate = weeklyRate(), tw = trendSeries().at(-1);
   $('h-wtrend').textContent = tw ? `${num(tw.t)} كجم${rate != null ? ` (${sgn(rate)}/أسبوع)` : ''}` : '';
@@ -344,6 +347,7 @@ function energyBlock(t, tot) {
 }
 function coachTips() {
   const d = today(), t = targets(), tot = mealTotals(d), tips = [], rd = readiness(), hr = new Date().getHours();
+  if (backupDue()) tips.push(['💾', `${S.lastBackup ? `آخر نسخة احتياطية من ${dayDiff(S.lastBackup, d)} يوم.` : 'لسه معملتش نسخة احتياطية.'} بياناتك على التلفون بس، فلو اتمسحت هتضيع. <button class="sm p" style="margin-top:6px;display:block" onclick="shareBackup()">ابعت نسخة لنفسك</button>`]);
   const adv = calorieAdvice();
   if (adv && !adv.ok) tips.push(['⚖️', `وزنك بيتغير ${sgn(adv.rate)} كجم/أسبوع، وهدفك ${sgn(adv.want)}. اقتراحي تغيّر السعرات ${sgn(adv.adj)}.
     <button class="sm p" style="margin-top:6px;display:block" onclick="applyAdj(${adv.adj})">طبّق (${t.kcal + adv.adj} سعرة)</button>`]);
@@ -416,7 +420,7 @@ function renderWork() {
       ${howTo(e.id, i)}
       ${X.m === 'cardio' ? `<div class="target"><span class="tag blue">الهدف: ${e.tr} دقيقة، ${X.wl.split(' ')[0]} ${e.tw}</span><span class="mute">${e.note}</span></div>
       <div class="set head"><span></span><span>السابق</span><span>${X.wl}</span><span>دقايق</span><span>سعرات</span><span></span></div>`
-      : `<div class="target"><span class="tag ${e.up ? 'acc' : 'blue'}">الهدف: <b class="ltr">${e.tw !== '' ? e.tw + ' kg × ' : ''}${e.tr}</b></span><span class="mute">${e.note}</span></div>
+      : `<div class="target"><span class="tag ${e.up ? 'acc' : 'blue'}">الهدف: <b class="ltr">${e.tw !== '' ? e.tw + ' kg × ' : ''}${e.tr}</b></span><span class="mute">${e.note}</span></div>${warmupLine(e, i)}
       <div class="set head"><span></span><span>السابق</span><span>كجم</span><span>عدّات</span><span>RIR</span><span></span></div>`}
       ${e.sets.map((s, j) => `<div class="set ${s.ok ? 'done' : ''}">
         <span class="n">${j + 1}</span>
@@ -608,7 +612,7 @@ function renderFood() {
   const d = fDate(), t = targets(), tot = mealTotals(d);
   $('sub').textContent = d === today() ? 'النهارده' : fmtDay(d);
   $('f-macro').innerHTML = energyBlock(t, tot);
-  $('f-sugg').innerHTML = foodSuggestion(d, t, tot);
+  $('f-sugg').innerHTML = foodSuggestion(d, t, tot) + (aiOn() && t.kcal - tot.k > 200 ? `<button class="w" style="margin-top:12px" onclick="aiSuggestMeal()">✨ اقترح وجبة تكمّل يومي</button><div id="ai-meal"></div>` : '');
 
   const seen = new Set(), recent = [];
   for (let i = S.meals.length - 1; i >= 0 && recent.length < 10; i--) { const m = S.meals[i]; if (!seen.has(m.name)) { seen.add(m.name); recent.push(i); } }
@@ -930,6 +934,7 @@ function exportData() {
   // المفتاح مبيتصدّرش عشان الملف ممكن يتبعت لحد
   a.href = URL.createObjectURL(new Blob([JSON.stringify({ ...S, ai: { ...S.ai, key: '' } })], { type: 'application/json' }));
   a.download = `gym-backup-${today()}.json`; a.click();
+  S.lastBackup = today(); save();
 }
 function importData(inp) {
   const f = inp.files[0]; if (!f) return;

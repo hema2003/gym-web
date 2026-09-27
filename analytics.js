@@ -149,6 +149,7 @@ function renderWeek() {
       ${stat(s.stepsAvg == null ? '—' : Math.round(s.stepsAvg).toLocaleString('en'), 'متوسط الخطوات')}
     </div>${s.days < 7 ? `<p class="mute" style="margin:10px 0 0">المقارنة بأول ${s.days} أيام من الأسبوع اللي فات.</p>` : ''}</div>
     <div class="card"><h2>ملاحظات الأسبوع</h2><ul class="coach">${weekInsights(s, p).map(([i, t]) => `<li><i>${i}</i><span>${t}</span></li>`).join('')}</ul></div>
+    <div class="card">${badgesHTML()}</div>
     <div class="card"><h2>المراجعات الأسبوعية <small>بتتعمل لوحدها كل سبت</small></h2><ul class="list">${checkinsList()}</ul>
       ${repOffset < 0 && !S.checkins.some(c => c.week === ws) ? `<button class="w" style="margin-top:8px" onclick="const c=runCheckin('${ws}',true);c?openCheckin(c.week):toast('مفيش بيانات كفاية للأسبوع ده')">اعمل مراجعة للأسبوع ده</button>` : ''}</div>`;
 }
@@ -193,6 +194,8 @@ function renderBody() {
   $('p-tdee').innerHTML = ex.need
     ? `<p style="margin:0">عشان أحسب حرقك الحقيقي محتاج <b>10 أيام أكل متسجل</b> و<b>8 مرات وزن</b> خلال 4 أسابيع.</p>
        <p class="mute" style="margin:6px 0 0">عندك دلوقتي ${ex.days} يوم أكل و${ex.weighs} مرة وزن.</p>`
+    : Math.abs(ex.tdee - tg.tdee) > tg.tdee * 0.3
+    ? `<div class="energy">${ex.tdee.toLocaleString('en')}</div><p class="warn" style="margin:6px 0 0">الرقم ده بعيد جدًا عن المتوقع (${r50(tg.tdee).toLocaleString('en')}). غالبًا في وجبات مش متسجلة أو أيام ناقصة، فمش هعدّل هدفك عليه. سجّل كل أكلك أسبوعين والرقم هيتظبط.</p>`
     : `<div class="energy">${ex.tdee.toLocaleString('en')}</div><div class="mute">سعرة في اليوم حرقك الفعلي. المعادلة كانت متوقعة ${r50(tg.tdee).toLocaleString('en')}، ومتوسط أكلك ${ex.avgIn.toLocaleString('en')}.</div>
        ${Math.abs(ex.tdee - tg.tdee) >= 150 ? `<button class="p w" style="margin-top:12px" onclick="applyTdee(${ex.tdee})">ظبّط هدفي على الحرق الفعلي (${r50(ex.tdee * (1 + GOALS[S.profile.goal].d))} سعرة)</button>` : '<p class="mute" style="margin:8px 0 0">هدفك مظبوط على حرقك الفعلي.</p>'}`;
 
@@ -206,7 +209,9 @@ function renderBody() {
     return `<li><span>${ml[k]}</span><span class="row fit" style="gap:10px">${sparkline(series, 60, 22)}<b>${fl[k]}</b>${M.length > 1 && d ? `<span class="${good ? 'green' : 'red'} ltr" style="font-size:13px">${sgn(d)}</span>` : ''}</span></li>`;
   }).join('') + `<li class="mute">آخر قياس ${fmtShort(fl.date)}. قيس كل أسبوعين، الصبح قبل الأكل.</li>`
     : '<li class="mute">قيس الوسط والدراع كل أسبوعين. لو الوسط بينزل والدراع ثابت، يبقى بتخسر دهون مش عضل.</li>';
+  renderPhotos();
 }
+
 function setGoalW() { const v = parseFloat($('p-goalw').value); if (!v) return toast('اكتب الوزن المستهدف'); S.profile.goalW = v; save(); toast('اتحفظ الهدف ✓'); renderProg(); }
 
 // ----- القوة -----

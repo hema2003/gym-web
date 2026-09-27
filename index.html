@@ -243,7 +243,7 @@ nav button.on svg{stroke-width:2.4}
 
     <div id="h-checkin"></div>
     <div class="card">
-      <h2>ملاحظات المدرب</h2>
+      <h2>ملاحظات المدرب <span id="h-ask"></span></h2>
       <ul class="coach" id="h-coach"></ul>
     </div>
   </section>
@@ -279,7 +279,7 @@ nav button.on svg{stroke-width:2.4}
       <div id="f-sugg"></div>
     </div>
     <div class="card">
-      <h2>أكلت إيه</h2>
+      <h2>أكلت إيه <button class="g sm" onclick="copyYesterday()">كرّر أكل امبارح</button></h2>
       <div id="f-list"></div>
       <div class="chips" id="f-quick" style="margin-top:14px"></div>
     </div>
@@ -298,6 +298,7 @@ nav button.on svg{stroke-width:2.4}
     <div id="p-body" class="hide">
       <div class="card"><h2>هدف الوزن</h2><div id="p-goal"></div></div>
       <div class="card"><h2>حرقك الفعلي <small>من أكلك ووزنك</small></h2><div id="p-tdee"></div></div>
+      <div class="card"><h2>صور التقدم</h2><div id="p-photos"></div></div>
       <div class="card">
         <h2>الوزن <small>النقط: كل يوم، والخط: المتوسط</small></h2>
         <div class="chips" id="p-wrange" style="margin-bottom:10px"></div>
@@ -402,7 +403,7 @@ nav button.on svg{stroke-width:2.4}
       <h2>نسخة احتياطية</h2>
       <p class="mute" style="margin-top:0">بياناتك متخزنة على تلفونك بس. صدّر نسخة كل فترة واحفظها في مكان أمان.</p>
       <div class="row">
-        <button onclick="exportData()">صدّر نسخة</button>
+        <button onclick="shareBackup()">ابعت نسخة (واتساب / Drive)</button>
         <button onclick="$('imp').click()">استرجع نسخة</button>
       </div>
       <input type="file" id="imp" accept=".json,application/json" class="hide" onchange="importData(this)">
@@ -432,6 +433,7 @@ nav button.on svg{stroke-width:2.4}
 <script src="data.js"></script>
 <script src="foods.js"></script>
 <script src="analytics.js"></script>
+<script src="features.js"></script>
 <script src="coach.js"></script>
 <script src="ai.js"></script>
 <script src="app.js"></script>
