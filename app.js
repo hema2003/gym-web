@@ -2,7 +2,7 @@
 const KEY = 'gym-data-v1';
 const DEF = () => ({
   v: 2,
-  profile: { h: 173, w: 83, bf: 20, act: 1.6, goal: 'recomp', adj: 0, adjDate: null, meso: null },
+  profile: { h: 173, w: 83, bf: 20, act: 1.6, goal: 'cut', adj: 0, adjDate: null, meso: null },
   workouts: [], meals: [], weights: [], meas: [], daily: {}, myFoods: [], draft: null
 });
 const GOALS = {
@@ -49,6 +49,9 @@ function migrate(s) {
   if (s.draft && !s.draft.v2) s.draft = null;
   // أصناف الأكل القديمة كانت بالوحدة أو بالجرام من غير u
   s.meals.forEach(m => (m.items || []).forEach(it => { if (it.id && it.u === undefined) it.u = UNIT_IDS.includes(it.id) ? 0 : -1; }));
+  // الهدف الأساسي خسارة دهون، فأي ملف قديم على "ريكومب" بيتحول لـ "تنشيف" مرة واحدة
+  s.flags = s.flags || {};
+  if (!s.flags.cut1) { if (s.profile.goal === 'recomp') s.profile.goal = 'cut'; s.flags.cut1 = 1; }
   s.daily = s.daily || {}; s.meas = s.meas || []; s.myFoods = s.myFoods || []; s.v = 2;
   return s;
 }
@@ -96,7 +99,7 @@ function targets() {
   const bmr = 370 + 21.6 * lbm; // Katch-McArdle
   const tdee = bmr * p.act;
   const kcal = r50(tdee * (1 + GOALS[p.goal].d) + (+p.adj || 0));
-  const pro = r5(2.2 * lbm), fat = r5(0.8 * w);
+  const pro = r5((p.goal === 'cut' ? 2.5 : 2.2) * lbm), fat = r5(0.8 * w);
   return { w, lbm, tdee, kcal, pro, fat, carb: Math.max(0, r5((kcal - pro * 4 - fat * 9) / 4)) };
 }
 // سعرات بتتظبط لوحدها حسب اتجاه الوزن الحقيقي
@@ -107,6 +110,22 @@ function calorieAdvice() {
   const want = GOALS[p.goal].r * curWeight();
   const adj = Math.max(-300, Math.min(300, -r50((rate - want) * 1100)));
   return { rate, want, adj, ok: Math.abs(adj) < 100 };
+}
+// الحرق الفعلي (فكرة من MacroFactor): متوسط أكلك − (تغيّر متوسط وزنك × 7700 ÷ الأيام)
+function expenditure() {
+  const d = today(), from = addDays(d, -27);
+  const days = [...Array(28)].map((_, i) => addDays(from, i)).filter(x => S.meals.some(m => m.date === x));
+  const ts = trendSeries().filter(p => p.d >= from);
+  if (days.length < 10 || ts.length < 8) return { need: true, days: days.length, weighs: ts.length };
+  const span = dayDiff(ts[0].d, ts.at(-1).d);
+  if (span < 10) return { need: true, days: days.length, weighs: ts.length };
+  const avgIn = days.reduce((a, x) => a + mealTotals(x).k, 0) / days.length;
+  return { tdee: r50(avgIn - (ts.at(-1).t - ts[0].t) * 7700 / span), avgIn: Math.round(avgIn), days: days.length };
+}
+function applyTdee(tdee) {
+  const p = S.profile, formula = targets().tdee;
+  p.adj = r50(tdee * (1 + GOALS[p.goal].d) - formula * (1 + GOALS[p.goal].d)); p.adjDate = today();
+  save(); toast(`هدفك بقى ${targets().kcal} سعرة`); rerender();
 }
 function applyAdj(n) { S.profile.adj = (+S.profile.adj || 0) + n; S.profile.adjDate = today(); save(); toast(`السعرات بقت ${targets().kcal}`); rerender(); }
 
@@ -232,58 +251,85 @@ function go(v) {
 function rerender() { ({ home: renderHome, work: renderWork, food: renderFood, prog: renderProg, set: renderSet })[view](); }
 
 // ================= اليوم =================
+// ===== البار: بيتحمّل بأطباق على قد التقدّم (ألوان الأطباق الأولمبية) =====
+const PLATES = [['--red', 78], ['--blue', 70], ['--yellow', 62], ['--green', 54]];
+const barState = {};
+function barbell(key, filled, slots) {
+  const W = 340, H = 92, cy = H / 2, pw = 11, gap = 3, inner = 118, prev = barState[key] ?? filled;
+  barState[key] = filled;
+  let s = `<svg class="barbell" viewBox="0 0 ${W} ${H}" role="img" aria-label="${filled} من ${slots}">`;
+  s += `<rect x="4" y="${cy - 3}" width="${W - 8}" height="6" rx="3" style="fill:var(--ink-3)"/>`;
+  s += `<rect x="${inner - 6}" y="${cy - 9}" width="6" height="18" rx="2" style="fill:var(--ink-2)"/><rect x="${W - inner}" y="${cy - 9}" width="6" height="18" rx="2" style="fill:var(--ink-2)"/>`;
+  for (let i = 0; i < slots; i++) {
+    const [c, h] = PLATES[i % 4], on = i < filled, isNew = on && i >= prev;
+    const xl = inner - 8 - (i + 1) * (pw + gap) + gap, xr = W - inner + 8 + i * (pw + gap);
+    const st = on ? `fill:var(${c})` : 'fill:none;stroke:var(--line);stroke-width:1.5';
+    s += `<rect class="plate${isNew ? ' new' : ''}" style="${st};--dx:-40px" x="${xl}" y="${cy - h / 2}" width="${pw}" height="${h}" rx="3"/>`;
+    s += `<rect class="plate${isNew ? ' new' : ''}" style="${st};--dx:40px" x="${xr}" y="${cy - h / 2}" width="${pw}" height="${h}" rx="3"/>`;
+  }
+  return s + '</svg>';
+}
+
 const SHORT = { push: 'Push', pull: 'Pull', legs: 'Legs', arms: 'Arms', upper: 'Upper' };
 function renderHome() {
   const d = today(), t = targets(), tot = mealTotals(d), dd = daily(d), wk = mesoWeek();
   $('sub').textContent = fmtDay(d);
+  const ws = weekStart(d), week = projectWeek(ws), doneWeek = S.workouts.filter(w => w.date >= ws).length;
 
-  const ws = weekStart(d);
-  $('h-week').innerHTML = projectWeek(ws).map(x => {
-    const lbl = x.done ? (SHORT[x.key] || '✓') : x.rest ? 'راحة' : x.key ? SHORT[x.key] : '—';
-    return `<div class="${x.done ? 'done' : ''} ${x.plan ? 'plan' : ''} ${x.day === d ? 'today' : ''}"><b>${lbl}</b>${DAY_AR[toDate(x.day).getDay()].replace(/^ال/, '')}</div>`;
+  $('h-week').innerHTML = week.map(x => {
+    const lbl = x.done ? (SHORT[x.key] || 'تمرين') : x.rest ? 'راحة' : x.key ? SHORT[x.key] : '—';
+    return `<div class="${x.done ? 'done' : ''} ${x.day === d ? 'today' : ''}"><b>${lbl}</b>${DAY_AR[toDate(x.day).getDay()].replace(/^ال/, '')}</div>`;
   }).join('');
 
-  $('h-meso').innerHTML = wk === 5 ? '<span class="tag blue">Deload · أسبوع خفيف</span>' : `<span class="tag">أسبوع ${wk} من 4</span>`;
   const done = S.workouts.filter(w => w.date === d), key = nextKey(), P = PROGRAM[key], last = lastProgramWorkout();
-  const gap = last ? dayDiff(last.date, d) : 0;
-  const sets = P.ex.reduce((a, [, n]) => a + n, 0);
-  const planInfo = `<div style="margin-bottom:10px"><b style="font-size:20px">${P.name}</b> <span class="mute">${P.ar}</span>
-      <div class="mute">${P.ex.length} تمارين · ${sets} مجموعة · حوالي ${Math.round(sets * 2.6)} دقيقة</div>
-      ${last && gap > 1 ? `<div class="mute" style="margin-top:4px">آخر تمرين كان ${PROGRAM[last.key].name} من ${gap} أيام، فهنكمّل من بعده.</div>` : ''}</div>`;
+  const gap = last ? dayDiff(last.date, d) : 0, sets = P.ex.reduce((a, [, n]) => a + n, 0);
+  const deloadTag = wk === 5 ? ' <span class="tag blue">أسبوع خفيف</span>' : '';
+  const bar = barbell('week', doneWeek, 5);
   let h;
   if (draftActive()) {
     const n = S.draft.ex.reduce((a, e) => a + e.sets.filter(s => s.ok).length, 0);
-    h = `<p style="margin:0 0 10px">فيه تمرين شغال: <b class="acc">${esc(S.draft.name)}</b> · ${n} مجموعة خلصت</p><button class="p w" onclick="go('work')">كمّل التمرين</button>`;
+    h = `<div class="kicker">تمرين شغّال</div><div class="name">${esc(S.draft.name)}</div><p class="desc">خلّصت ${n} مجموعة لحد دلوقتي.</p>${bar}
+      <button class="p w big" onclick="go('work')">كمّل التمرين</button>`;
   } else if (done.length) {
     const w = done.at(-1);
-    h = `<p style="margin:0">✅ خلصت <b>${esc(w.name)}</b> · ${w.ex.length} تمارين${w.dur ? ` · ${w.dur} دقيقة` : ''}</p><p class="mute" style="margin:4px 0 0">ركّز على الأكل والنوم عشان تستشفى.</p>`;
+    h = `<div class="kicker">خلّصت تمرين النهارده</div><div class="name">${esc(w.name)} ✓</div><p class="desc">${w.ex.length} تمارين${w.dur ? ` في ${w.dur} دقيقة` : ''}. دلوقتي ركّز على البروتين والنوم.</p>${bar}`;
   } else if (restSuggested()) {
-    h = `<p style="margin:0 0 4px">😴 <b>النهارده يوم راحة مقترح.</b> الاستشفاء جزء من التمرين، فامشي 8-10 آلاف خطوة.</p>
-      <p class="mute" style="margin:0 0 10px">لو حابب تتمرن، التمرين اللي عليك: <b>${P.name}</b> (${P.ar}).</p>
-      <button class="w" onclick="startTpl('${key}')">اتمرن برضه</button>`;
+    h = `<div class="kicker">مقترح النهارده</div><div class="name">راحة</div>
+      <p class="desc">الاستشفاء جزء من التمرين. امشي 10 آلاف خطوة، وبكرة عليك ${P.name}.</p>${bar}
+      <button class="w" onclick="startTpl('${key}')">اتمرن برضه (${P.name})</button>`;
   } else {
-    h = planInfo + `<button class="p w" onclick="startTpl('${key}')">ابدأ التمرين</button>`;
+    h = `<div class="kicker">تمرين النهارده${deloadTag}</div><div class="name">${P.name}</div>
+      <p class="desc">${P.ar.replace(/ · /g, '، ')}. ${P.ex.length} تمارين في حوالي ${Math.round(sets * 2.6)} دقيقة.</p>
+      ${last && gap > 1 ? `<p class="mute" style="margin:6px 0 0">آخر تمرين كان ${PROGRAM[last.key].name} من ${gap} أيام، فهنكمّل من بعده.</p>` : ''}
+      ${bar}<button class="p w big" onclick="startTpl('${key}')">ابدأ التمرين</button>`;
   }
-  $('h-work').innerHTML = h;
+  $('h-work').innerHTML = h + `<p class="mute" style="margin:8px 0 0;text-align:center">${doneWeek} من 5 تمارين الأسبوع ده</p>`;
 
-  const R = dd.ready, opts = [['s', 'نوم', ['😫', '😐', '😴']], ['e', 'طاقة', ['🪫', '😐', '⚡']], ['m', 'عضلات', ['😣', '😐', '💪']]];
+  const R = dd.ready, opts = [['s', 'النوم', ['😫', '😐', '😴']], ['e', 'الطاقة', ['🪫', '😐', '⚡']], ['m', 'العضلات', ['😣', '😐', '💪']]];
   $('h-ready').innerHTML = opts.map(([k, l, em]) => `<div class="ready"><span>${l}</span>${em.map((e, i) =>
-    `<button class="${R[k] === i + 1 ? 'on' : ''}" onclick="setReady('${k}',${i + 1})">${e}</button>`).join('')}</div>`).join('');
+    `<button class="${R[k] === i + 1 ? 'on' : ''}" onclick="setReady('${k}',${i + 1})" aria-label="${l} ${i + 1}">${e}</button>`).join('')}</div>`).join('');
   const rd = readiness();
-  $('h-ready-s').textContent = !rd ? '' : rd.low ? 'خفّف النهارده' : rd.high ? 'جاهز 💪' : 'تمام';
+  $('h-ready-s').textContent = !rd ? 'اختار عشان التمرين يتظبط عليك' : rd.low ? 'هنخفّف التمرين النهارده' : rd.high ? 'جاهز تمامًا' : 'تمام';
 
-  $('h-nut').innerHTML = `
-    <div class="stat"><b>${tot.k}</b><span>من ${t.kcal} سعرة</span><div class="bar"><i style="width:${pct(tot.k, t.kcal)}"></i></div></div>
-    <div class="stat"><b class="blue">${Math.round(tot.p)}</b><span>من ${t.pro} جم بروتين</span><div class="bar" style="--c:var(--blue)"><i style="width:${pct(tot.p, t.pro)}"></i></div></div>`;
+  $('h-nut').innerHTML = energyBlock(t, tot);
   $('h-water').innerHTML = Array.from({ length: 12 }, (_, i) => `<i class="${i < dd.water ? 'on' : ''}"></i>`).join('');
-  $('h-water-t').textContent = `مية: ${(dd.water * 0.25).toFixed(2).replace(/\.?0+$/, '')} من 3 لتر`;
+  $('h-water-t').textContent = `المية: ${(dd.water * 0.25).toFixed(2).replace(/\.?0+$/, '') || 0} من 3 لتر`;
+  const st = +dd.steps || 0;
+  $('h-stepsbar').innerHTML = `<div class="row"><span class="mute">الخطوات: <b class="num" style="font-weight:600">${st.toLocaleString('en')}</b> من 10,000</span></div><div class="bar" style="--c:var(--green)"><i style="width:${pct(st, 10000)}"></i></div>`;
 
   const rate = weeklyRate(), tw = trendSeries().at(-1);
-  $('h-wtrend').textContent = tw ? `متوسط ${num(tw.t)}${rate != null ? ` · ${sgn(rate)}/أسبوع` : ''}` : '';
-  $('h-w').placeholder = S.weights.find(x => x.date === d)?.w ?? 'الوزن كجم';
-  $('h-steps').placeholder = dd.steps || 'خطوات';
-
+  $('h-wtrend').textContent = tw ? `${num(tw.t)} كجم${rate != null ? ` (${sgn(rate)}/أسبوع)` : ''}` : '';
+  $('h-w').placeholder = S.weights.find(x => x.date === d)?.w ?? 'الوزن (كجم)';
+  $('h-steps').placeholder = dd.steps || 'الخطوات';
   $('h-coach').innerHTML = coachTips().map(([i, t]) => `<li><i>${i}</i><span>${t}</span></li>`).join('');
+}
+// السعرات الفاضلة كرقم كبير، والماكروز بألوان الأطباق
+function energyBlock(t, tot) {
+  const left = t.kcal - tot.k;
+  const m = (v, tg, l, c) => `<div class="stat"><b style="color:var(${c})">${Math.round(v)}</b><span>${l} من ${tg}</span><div class="bar" style="--c:var(${c})"><i style="width:${pct(v, tg)}"></i></div></div>`;
+  return `<div class="row" style="align-items:flex-end"><div><div class="energy" style="color:${left < 0 ? 'var(--red)' : 'var(--ink)'}">${Math.abs(left).toLocaleString('en')}</div>
+    <div class="mute">${left >= 0 ? 'سعرة فاضلة' : 'سعرة زيادة عن الهدف'}، أكلت ${tot.k} من ${t.kcal}</div></div></div>
+    <div class="macros">${m(tot.p, t.pro, 'بروتين', '--blue')}${m(tot.c, t.carb, 'كارب', '--yellow')}${m(tot.f, t.fat, 'دهون', '--green')}</div>`;
 }
 function coachTips() {
   const d = today(), t = targets(), tot = mealTotals(d), tips = [], rd = readiness(), hr = new Date().getHours();
@@ -307,9 +353,8 @@ function coachTips() {
   const wkW = S.workouts.filter(w => w.date >= weekStart(d));
   const cMin = wkW.reduce((a, w) => a + w.ex.filter(e => isCardio(e.id)).reduce((b, e) => b + e.sets.reduce((c, s) => c + s.r, 0), 0), 0);
   const cK = wkW.reduce((a, w) => a + w.ex.filter(e => isCardio(e.id)).reduce((b, e) => b + e.sets.reduce((c, s) => c + cardioKcal(e.id, s.w, s.r), 0), 0), 0);
-  tips.push(['🏃', cMin ? `كارديو الأسبوع ده: ${cMin} دقيقة ≈ ${cK} سعرة. الهدف حوالي 60 دقيقة + خطوات يومية.` : 'مفيش كارديو الأسبوع ده لسه. 15 دقيقة مشي بميل في آخر التمرين بتفرق في التنشيف.']);
-  const wkN = wkW.length;
-  tips.push(['📅', `عملت ${wkN} من 5 تمارين الأسبوع ده.`]);
+  tips.push(['🏃', cMin ? `كارديو الأسبوع ده: ${cMin} دقيقة ≈ ${cK} سعرة. الهدف حوالي 60 دقيقة + خطوات يومية.` : 'مفيش كارديو الأسبوع ده لسه. 20 دقيقة مشي بميل في آخر التمرين بتفرق في التنشيف.']);
+
   return tips;
 }
 function setReady(k, v) { const r = daily(today()).ready; r[k] = r[k] === v ? undefined : v; save(); vib(8); renderHome(); }
@@ -337,31 +382,32 @@ function pickTpl(k) {
 function renderWork() {
   if (!S.draft) buildDraft(nextKey());
   const D = S.draft, P = PROGRAM[D.key];
-  $('sub').textContent = 'Push · Pull · Legs · Arms · Upper';
+  $('sub').textContent = 'برنامج 5 تمارين بترتيب مرن';
   $('w-tpl').innerHTML = Object.entries(PROGRAM).map(([k, p]) => `<button class="chip ${D.key === k ? 'on' : ''}" onclick="pickTpl('${k}')">${p.name}</button>`).join('')
     + `<button class="chip ${D.key === '' ? 'on' : ''}" onclick="pickTpl('')">حر</button>`;
-  $('w-banner').innerHTML = D.deload ? '<div class="banner">🔄 أسبوع Deload: الأوزان أقل 10% والمجموعات أقل. خليه سهل.</div>'
-    : D.low ? '<div class="banner warn">😴 جاهزيتك قليلة، شِلت مجموعة من كل تمرين.</div>' : '';
-  $('w-title').textContent = D.name + (P ? ' · ' + P.ar : '');
+  $('w-banner').innerHTML = D.deload ? '<div class="banner">🔄 أسبوع خفيف: الأوزان أقل 10% والمجموعات أقل عشان جسمك يستشفى.</div>'
+    : D.low ? '<div class="banner warn">😴 جاهزيتك قليلة النهارده، فشِلنا مجموعة من كل تمرين.</div>' : '';
+  $('w-title').textContent = D.name;
   $('w-date').value = D.date;
   updateMeta();
 
   $('w-ex').innerHTML = D.ex.length ? D.ex.map((e, i) => {
     const X = exInfo(e.id);
     return `<div class="ex">
-      <div class="ex-h"><div><b>${esc(X.ar)}</b>${X.n !== X.ar ? `<small class="ltr">${esc(X.n)}</small><small> · ` : '<small>'}${X.eq ? EQ[X.eq] + ' · ' : ''}${X.m === 'cardio' ? `${X.rr[0]}-${X.rr[1]} دقيقة` : `${X.rr[0]}-${X.rr[1]} عدّة · راحة ${X.rest} ث`}</small></div>
+      <div class="ex-h"><div><b>${esc(X.ar)}</b>${X.n !== X.ar ? `<small class="ltr" style="display:block">${esc(X.n)}</small>` : ''}<small>${X.eq ? EQ[X.eq] + '، ' : ''}${X.m === 'cardio' ? `${X.rr[0]} لـ ${X.rr[1]} دقيقة` : `${X.rr[0]} لـ ${X.rr[1]} عدّة، وراحة ${X.rest} ثانية`}</small></div>
         <button class="g" onclick="exSheet(${i})" aria-label="خيارات التمرين">⋯</button></div>
       ${howTo(e.id, i)}
-      ${X.m === 'cardio' ? `<div class="target"><span class="tag blue">🎯 ${e.tr} دقيقة · ${X.wl.split(' ')[0]} ${e.tw}</span><span class="mute">${e.note}</span></div>
-      <div class="set head"><span></span><span>${X.wl}</span><span>دقايق</span><span>سعرات</span><span></span></div>`
-      : `<div class="target"><span class="tag ${e.up ? 'acc' : 'blue'} ltr">🎯 ${e.tw !== '' ? e.tw + ' kg × ' : ''}${e.tr}</span><span class="mute">${e.note}</span></div>
-      <div class="set head"><span></span><span>الوزن</span><span>العدّات</span><span>RIR</span><span></span></div>`}
+      ${X.m === 'cardio' ? `<div class="target"><span class="tag blue">الهدف: ${e.tr} دقيقة، ${X.wl.split(' ')[0]} ${e.tw}</span><span class="mute">${e.note}</span></div>
+      <div class="set head"><span></span><span>السابق</span><span>${X.wl}</span><span>دقايق</span><span>سعرات</span><span></span></div>`
+      : `<div class="target"><span class="tag ${e.up ? 'acc' : 'blue'}">الهدف: <b class="ltr">${e.tw !== '' ? e.tw + ' kg × ' : ''}${e.tr}</b></span><span class="mute">${e.note}</span></div>
+      <div class="set head"><span></span><span>السابق</span><span>كجم</span><span>عدّات</span><span>RIR</span><span></span></div>`}
       ${e.sets.map((s, j) => `<div class="set ${s.ok ? 'done' : ''}">
         <span class="n">${j + 1}</span>
+        <span class="prev">${prevSet(e.id, j)}</span>
         <input type="number" step="0.5" inputmode="decimal" value="${s.w}" onchange="setVal(${i},${j},'w',this.value)">
         <input type="number" inputmode="numeric" value="${s.r}" onchange="setVal(${i},${j},'r',this.value)">
         ${X.m === 'cardio' ? `<span class="rir kc">${cardioKcal(e.id, s.w, s.r)}</span>` : `<button class="rir" onclick="cycleRir(${i},${j})">${s.rir == null ? '—' : s.rir === 3 ? '3+' : s.rir}</button>`}
-        <button class="tick" onclick="tick(${i},${j})">✓</button>
+        <button class="tick" onclick="tick(${i},${j})" aria-label="المجموعة ${j + 1} خلصت">✓</button>
       </div>`).join('')}
       <div class="row"><button class="g sm fit" onclick="addSet(${i})">+ مجموعة</button><button class="g sm fit" onclick="rmSet(${i})">− مجموعة</button></div>
     </div>`;
@@ -370,8 +416,14 @@ function renderWork() {
   $('w-hist').innerHTML = S.workouts.slice(-20).reverse().map(w => {
     const sets = w.ex.reduce((a, e) => a + e.sets.length, 0);
     return `<li onclick="histSheet('${w.id}')" style="cursor:pointer"><div><b>${esc(w.name)}</b>${w.deload ? ' <span class="tag blue">Deload</span>' : ''}${w.prs ? ` <span class="tag acc">🏆 ${w.prs}</span>` : ''}
-      <div class="mute">${fmtDay(w.date)} · ${w.ex.length} تمارين · ${sets} مجموعة${w.dur ? ` · ${w.dur}د` : ''}</div></div><span class="mute">←</span></li>`;
+      <div class="mute">${fmtDay(w.date)}، ${w.ex.length} تمارين و${sets} مجموعة${w.dur ? ` في ${w.dur} دقيقة` : ''}</div></div><span class="mute" aria-hidden="true">‹</span></li>`;
   }).join('') || '<li class="mute">لسه مفيش تمارين متسجلة</li>';
+}
+// عمود "السابق": نفس المجموعة من آخر مرة (فكرة من Hevy)
+function prevSet(id, j) {
+  const L = lastSession(id); if (!L) return '—';
+  const s = L.sets[j]; if (!s) return '—';
+  return isCardio(id) ? `${s.r}د` : `${s.w}×${s.r}`;
 }
 const openHow = new Set();
 function howTo(id, i) {
@@ -387,7 +439,10 @@ function updateMeta() {
   const D = S.draft; if (!D) return;
   const all = D.ex.reduce((a, e) => a + e.sets.length, 0), ok = D.ex.reduce((a, e) => a + e.sets.filter(s => s.ok).length, 0);
   const mins = draftActive() ? Math.round((Date.now() - D.start) / 6e4) : 0;
-  $('w-meta').textContent = `أسبوع ${mesoWeek()} · ${ok}/${all} مجموعة${mins ? ` · ⏱ ${mins} دقيقة` : ''}`;
+  const P = PROGRAM[D.key];
+  $('w-meta').textContent = `${P ? P.ar.replace(/ · /g, '، ') + '. ' : ''}${ok} من ${all} مجموعة${mins ? `، ${mins} دقيقة` : ''}`;
+  const slots = 8;
+  $('w-bar').innerHTML = barbell('work', all ? Math.round(ok / all * slots) : 0, slots);
 }
 setInterval(() => view === 'work' && updateMeta(), 20000);
 function syncHead() { if (S.draft) { S.draft.date = $('w-date').value || today(); save(); } }
@@ -522,7 +577,7 @@ const macrosOf = (f, g) => { const m = g / 100; return { k: Math.round(f.k * m),
 const gramsOf = it => { const f = foodById(it.id); return it.u >= 0 && f.por[it.u] ? it.q * f.por[it.u][1] : it.q; };
 const unitName = (f, u) => u >= 0 && f.por[u] ? f.por[u][0] : 'جم';
 const itemMacros = it => it.c ? { k: +it.c.k || 0, p: +it.c.p || 0, c: +it.c.c || 0, f: +it.c.f || 0 } : foodById(it.id) ? macrosOf(foodById(it.id), gramsOf(it)) : { k: 0, p: 0, c: 0, f: 0 };
-const itemName = it => { if (it.c) return it.c.n; const f = foodById(it.id); return f ? `${f.n} · ${num(it.q)} ${unitName(f, it.u)}` : '؟'; };
+const itemName = it => { if (it.c) return it.c.n; const f = foodById(it.id); return f ? `${f.n} (${num(it.q)} ${unitName(f, it.u)})` : '؟'; };
 const sumMacros = items => items.map(itemMacros).reduce((a, m) => ({ k: a.k + m.k, p: num(a.p + m.p), c: num(a.c + m.c), f: num(a.f + m.f) }), { k: 0, p: 0, c: 0, f: 0 });
 const toItem = ([id, q, u]) => ({ id, q, u: u ?? -1 });
 const planItems = pm => pm.items.map(toItem);
@@ -535,8 +590,7 @@ function renderFood() {
   if (!$('f-date').value) $('f-date').value = today();
   const d = fDate(), t = targets(), tot = mealTotals(d);
   $('sub').textContent = d === today() ? 'النهارده' : fmtDay(d);
-  const mk = (v, tg, l, c) => `<div class="stat"><b style="color:${c}">${Math.round(v)}</b><span>${l}<br>من ${tg}</span><div class="bar" style="--c:${c}"><i style="width:${pct(v, tg)}"></i></div></div>`;
-  $('f-macro').innerHTML = mk(tot.k, t.kcal, 'سعرات', 'var(--acc)') + mk(tot.p, t.pro, 'بروتين', 'var(--blue)') + mk(tot.c, t.carb, 'كارب', 'var(--amber)') + mk(tot.f, t.fat, 'دهون', 'var(--pink)');
+  $('f-macro').innerHTML = energyBlock(t, tot);
   $('f-sugg').innerHTML = foodSuggestion(d, t, tot);
 
   const seen = new Set(), recent = [];
@@ -545,23 +599,24 @@ function renderFood() {
 
   const eaten = new Set(S.meals.filter(m => m.date === d).map(m => m.name));
   const all = MEAL_PLAN.reduce((a, pm) => { const m = sumMacros(planItems(pm)); return { k: a.k + m.k, p: a.p + m.p }; }, { k: 0, p: 0 });
-  $('f-plan-t').textContent = `≈ ${all.k} سعرة · ${Math.round(all.p)} جم بروتين`;
+  $('f-plan-t').textContent = `حوالي ${all.k} سعرة`;
   $('f-plan').innerHTML = MEAL_PLAN.map((pm, i) => {
     const m = sumMacros(planItems(pm)), n = planName(pm), on = eaten.has(n);
-    return `<li><div><b>${pm.t}</b><div class="mute">${esc(n)}</div><div class="mute">${m.k} سعرة · ${Math.round(m.p)} جم بروتين</div></div>
-      <div class="row fit" style="gap:6px"><button class="sm" onclick="editPlan(${i})">✎ عدّل</button>
+    return `<li><div><b>${pm.t}</b><div class="mute">${esc(n)}</div><div class="mute">${m.k} سعرة و${Math.round(m.p)} جم بروتين</div></div>
+      <div class="row fit" style="gap:6px"><button class="sm" onclick="editPlan(${i})">عدّل</button>
       <button class="sm ${on ? 'p' : ''}" onclick="planMeal(${i})" aria-label="${on ? 'إلغاء' : 'سجّل'}">${on ? '✓' : '+'}</button></div></li>`;
   }).join('');
 
+  // كل وجبة ليها زرار إضافة مباشر (فكرة من MacroFactor)
   const list = S.meals.filter(m => m.date === d);
   $('f-list').innerHTML = Object.keys(SLOTS).map(sl => {
-    const g = list.filter(m => m.slot === sl);
-    if (!g.length) return '';
-    const st = g.reduce((a, m) => a + m.k, 0);
-    return `<li class="mute" style="padding-bottom:0;border:0"><span>${SLOTS[sl]}</span><span>${st} سعرة</span></li>` + g.map(m =>
-      `<li><div onclick="editMeal('${m.id}')" style="cursor:pointer;flex:1"><b style="font-weight:600">${esc(m.name)}</b><div class="mute">${m.k} سعرة · بروتين ${num(m.p)} · كارب ${num(m.c)} · دهون ${num(m.f)} · <span class="acc">تعديل</span></div></div>
-      <button class="g del" onclick="rmMeal('${m.id}')" aria-label="حذف">✕</button></li>`).join('');
-  }).join('') || '<li class="mute">لسه مسجلتش أكل في اليوم ده.</li>';
+    const g = list.filter(m => m.slot === sl), st = g.reduce((a, m) => a + m.k, 0);
+    return `<div class="slot-h"><b>${SLOTS[sl]}${st ? ` <span class="mute" style="font-weight:400">${st} سعرة</span>` : ''}</b>
+      <button class="sm" onclick="openBuilder([], '${sl}')">+ أضف</button></div>
+      <ul class="list">${g.map(m => `<li><div onclick="editMeal('${m.id}')" style="cursor:pointer;flex:1"><div style="font-weight:500">${esc(m.name)}</div>
+        <div class="mute">${m.k} سعرة، بروتين ${num(m.p)}، كارب ${num(m.c)}، دهون ${num(m.f)}</div></div>
+        <button class="g del" onclick="rmMeal('${m.id}')" aria-label="احذف الوجبة">✕</button></li>`).join('')}</ul>`;
+  }).join('');
 }
 
 // اقتراح مرن مش قيد: بيقولك فاضلك قد إيه ويقترح حاجة رخيصة، والقرار ليك
@@ -576,7 +631,7 @@ function foodSuggestion(d, t, tot) {
   let picks = [];
   if (pLeft > 15) picks = PROTEIN_PICKS.map(toItem).map(it => ({ it, m: itemMacros(it) })).filter(x => x.m.k <= left + 50).sort((a, b) => b.m.p / b.m.k - a.m.p / a.m.k).slice(0, 3);
   return `<p style="margin:0">فاضلك <b>${left}</b> سعرة${pLeft > 0 ? ` و<b class="blue">${Math.round(pLeft)}</b> جم بروتين` : ''}. كُل اللي تحبه${picks.length ? '، ولو محتار دي اقتراحات رخيصة غنية بالبروتين:' : '.'}</p>
-    ${picks.length ? `<div class="chips" style="margin-top:10px;flex-wrap:wrap">${picks.map(x => `<button class="chip" onclick='quickItem(${JSON.stringify(x.it)})'>+ ${esc(itemName(x.it))} · ${x.m.k} سعرة · ${x.m.p} ب</button>`).join('')}</div>` : ''}${avgLine}`;
+    ${picks.length ? `<div class="chips" style="margin-top:10px;flex-wrap:wrap">${picks.map(x => `<button class="chip" onclick='quickItem(${JSON.stringify(x.it)})'>+ ${esc(itemName(x.it))}: ${x.m.k} سعرة و${x.m.p} جم بروتين</button>`).join('')}</div>` : ''}${avgLine}`;
 }
 
 function addMealEntry(o) { S.meals.push({ id: uid(), date: fDate(), ...o }); save(); vib(10); }
@@ -648,8 +703,8 @@ function renderFbTot() {
   $('fb-save').textContent = FB.items.length ? `${FB.edit ? 'احفظ التعديل' : 'سجّل الوجبة'} · ${s.k} سعرة` : 'ضيف أكل الأول';
 }
 function foodRow(f) {
-  const hint = f.por[0] ? ` · ${esc(f.por[0][0])} ≈ ${Math.round(f.k * f.por[0][1] / 100)}` : '';
-  return `<div class="food-it" onclick="fbAdd('${f.id}')"><div><div>${esc(f.n)}${f.src ? ` <span class="tag">${f.src}</span>` : ''}</div><div class="mute" style="font-size:12px">${f.k} سعرة · ${f.p} ب / 100 جم${hint}</div></div><b class="acc" style="font-size:20px">+</b></div>`;
+  const hint = f.por[0] ? `، ${esc(f.por[0][0])} = ${Math.round(f.k * f.por[0][1] / 100)} سعرة` : '';
+  return `<div class="food-it" onclick="fbAdd('${f.id}')"><div><div>${esc(f.n)}${f.src ? ` <span class="tag">${f.src}</span>` : ''}</div><div class="mute" style="font-size:12px">${f.k} سعرة و${f.p} جم بروتين لكل 100 جم${hint}</div></div><b class="acc" style="font-size:20px">+</b></div>`;
 }
 function renderFbList() {
   const raw = ($('fb-q').value || '').trim(), q = normAr(raw), my = S.myFoods || [];
@@ -725,7 +780,7 @@ async function searchOnline() {
     const r = await fetch(`${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${OFF_FIELDS}`);
     offResults = ((await r.json()).products || []).map(offToFood).filter(Boolean);
     box.innerHTML = offResults.length ? '<div class="mute" style="margin:10px 0 2px">نتايج أونلاين (القيم لكل 100 جم من على العبوة)</div>' +
-      offResults.map((f, i) => `<div class="food-it" onclick="pickOnline(${i})"><div><div>${esc(f.n)}</div><div class="mute" style="font-size:12px">${f.k} سعرة · ${f.p} ب / 100 جم</div></div><b class="acc" style="font-size:20px">+</b></div>`).join('')
+      offResults.map((f, i) => `<div class="food-it" onclick="pickOnline(${i})"><div><div>${esc(f.n)}</div><div class="mute" style="font-size:12px">${f.k} سعرة و${f.p} جم بروتين لكل 100 جم</div></div><b class="acc" style="font-size:20px">+</b></div>`).join('')
       : '<p class="mute">ملقتش نتايج. جرّب اسم تاني أو بالإنجليزي، أو ضيفه بنفسك.</p>';
   } catch { box.innerHTML = '<p class="mute">البحث مش شغال دلوقتي. جرّب تاني بعد شوية.</p>'; }
 }
@@ -768,14 +823,14 @@ function lineChart(pts, trend) {
   const path = main.map((p, i) => `${i ? 'L' : 'M'}${x(p.d).toFixed(1)},${y(p.y).toFixed(1)}`).join('');
   const L = main.at(-1);
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" style="direction:ltr;height:auto">
-    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c6f432" stop-opacity=".22"/><stop offset="1" stop-color="#c6f432" stop-opacity="0"/></linearGradient></defs>
-    ${[hi, lo].map(v => `<line x1="${P}" x2="${W - P}" y1="${y(v)}" y2="${y(v)}" stroke="#26292e" stroke-dasharray="3 4"/><text x="0" y="${y(v) + 4}" fill="#8a9099" font-size="10">${num(v)}</text>`).join('')}
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--blue)" stop-opacity=".22"/><stop offset="1" style="stop-color:var(--blue)" stop-opacity="0"/></linearGradient></defs>
+    ${[hi, lo].map(v => `<line x1="${P}" x2="${W - P}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--line)" stroke-dasharray="3 4"/><text x="0" y="${y(v) + 4}" style="fill:var(--ink-3)" font-size="10">${num(v)}</text>`).join('')}
     <path d="${path}L${x(L.d)},${H - P}L${x(main[0].d)},${H - P}Z" fill="url(#g)"/>
-    ${trend ? pts.map(p => `<circle cx="${x(p.d)}" cy="${y(p.y)}" r="2.5" fill="#8a9099" opacity=".7"/>`).join('') : ''}
-    <path d="${path}" fill="none" stroke="#c6f432" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-    <circle cx="${x(L.d)}" cy="${y(L.y)}" r="4.5" fill="#c6f432"/>
-    <text x="${P}" y="${H - 6}" fill="#8a9099" font-size="10">${pts[0].d.slice(5)}</text>
-    <text x="${W - P}" y="${H - 6}" fill="#8a9099" font-size="10" text-anchor="end">${pts.at(-1).d.slice(5)} · ${num(L.y)}</text>
+    ${trend ? pts.map(p => `<circle cx="${x(p.d)}" cy="${y(p.y)}" r="2.5" style="fill:var(--ink-3)" opacity=".7"/>`).join('') : ''}
+    <path d="${path}" fill="none" style="stroke:var(--blue)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${x(L.d)}" cy="${y(L.y)}" r="4.5" style="fill:var(--blue)"/>
+    <text x="${P}" y="${H - 6}" style="fill:var(--ink-3)" font-size="10">${pts[0].d.slice(5)}</text>
+    <text x="${W - P}" y="${H - 6}" style="fill:var(--ink-3)" font-size="10" text-anchor="end">${pts.at(-1).d.slice(5)} · ${num(L.y)}</text>
   </svg>`;
 }
 function renderProg() {
@@ -785,6 +840,12 @@ function renderProg() {
   $('p-rate').textContent = rate == null ? '—' : sgn(rate);
   $('p-rate').style.color = rate == null ? '' : Math.abs(rate - goalR * curWeight()) < 0.25 ? 'var(--acc)' : 'var(--amber)';
   $('p-n').textContent = S.workouts.filter(w => w.date >= weekStart(today())).length + '/5';
+  const ex = expenditure(), tg = targets();
+  $('p-tdee').innerHTML = ex.need
+    ? `<p style="margin:0">عشان أحسب حرقك الحقيقي، محتاج <b>10 أيام أكل متسجل</b> و<b>8 مرات وزن</b> خلال 4 أسابيع.</p>
+       <p class="mute" style="margin:6px 0 0">عندك دلوقتي ${ex.days} يوم أكل و${ex.weighs} مرة وزن. وده أدق بكتير من أي معادلة.</p>`
+    : `<div class="energy">${ex.tdee.toLocaleString('en')}</div><div class="mute">سعرة في اليوم حرقك الفعلي. المعادلة كانت متوقعة ${r50(tg.tdee).toLocaleString('en')}، ومتوسط أكلك ${ex.avgIn.toLocaleString('en')}.</div>
+       ${Math.abs(ex.tdee - tg.tdee) >= 150 ? `<button class="p w" style="margin-top:12px" onclick="applyTdee(${ex.tdee})">ظبّط هدفي على الحرق الفعلي (${r50(ex.tdee * (1 + GOALS[S.profile.goal].d))} سعرة)</button>` : '<p class="mute" style="margin:8px 0 0">هدفك مظبوط على حرقك الفعلي.</p>'}`;
   $('p-wchart').innerHTML = lineChart(ts.map(p => ({ d: p.d, y: p.y })), ts.map(p => ({ d: p.d, y: p.t })));
 
   const v = weeklyVolume(), scale = 30;

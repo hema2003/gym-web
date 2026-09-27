@@ -3,163 +3,200 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0e0f11">
+<meta name="theme-color" content="#E9ECEF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16191D" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>جيم</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@600;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+/* ===== الألوان: ألوان أطباق الأوزان الأولمبية ===== */
 :root{
-  --bg:#0e0f11; --card:#17191c; --card2:#1d2024; --line:#26292e; --text:#f2f3f5; --mute:#8a9099;
-  --acc:#c6f432; --acc-ink:#0e0f11; --warn:#ff6b5b; --blue:#5bb8ff; --amber:#ffc24b; --pink:#ff7ab8;
-  --r:18px;
+  --bg:#E9ECEF; --surface:#FFFFFF; --surface-2:#F3F5F7; --ink:#10151F; --ink-2:#5B6472; --ink-3:#8A929D; --line:#D9DEE4;
+  --red:#D7263D; --blue:#1F5FBF; --yellow:#E0A800; --green:#2E9E5B;
+  --btn:#10151F; --btn-ink:#FFFFFF; --focus:#1F5FBF;
+  --r-lg:22px; --r-md:14px; --r-sm:10px;
+  --display:Alexandria,"IBM Plex Sans Arabic",system-ui,sans-serif;
+  --body:"IBM Plex Sans Arabic",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#16191D; --surface:#1F2328; --surface-2:#272C32; --ink:#EEF1F4; --ink-2:#A3ACB7; --ink-3:#747D88; --line:#333941;
+    --red:#F0485B; --blue:#5B97F2; --yellow:#F6C63A; --green:#3DBB72;
+    --btn:#EEF1F4; --btn-ink:#16191D; --focus:#5B97F2; color-scheme:dark;
+  }
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--text)}
-body{font-family:Cairo,system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;font-size:15px;line-height:1.5;
-  padding:env(safe-area-inset-top) 0 calc(84px + env(safe-area-inset-bottom));overscroll-behavior-y:none}
-header{display:flex;align-items:center;justify-content:space-between;padding:18px 16px 4px;max-width:560px;margin:auto}
-header h1{font-size:22px;margin:0;font-weight:800}
-header small{color:var(--mute);display:block;font-size:13px}
-main{max-width:560px;margin:auto;padding:0 16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:12px 0}
-.card h2{font-size:14px;margin:0 0 10px;font-weight:600;color:var(--mute);display:flex;justify-content:space-between;align-items:center;gap:8px}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font-family:var(--body);font-size:15px;line-height:1.55;
+  padding:env(safe-area-inset-top) 0 calc(88px + env(safe-area-inset-bottom));overscroll-behavior-y:none}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+header{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 6px;max-width:600px;margin:auto}
+header h1{font-family:var(--display);font-size:26px;margin:0;font-weight:800;letter-spacing:-.2px}
+header small{color:var(--ink-2);display:block;font-size:13px}
+main{max-width:600px;margin:auto;padding:0 16px}
+.card{background:var(--surface);border-radius:var(--r-lg);padding:18px;margin:12px 0}
+h2,.h2{font-family:var(--display);font-size:17px;font-weight:600;margin:0 0 12px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h2 small,.h2 small{font-family:var(--body);font-size:13px;font-weight:400;color:var(--ink-2)}
 .row{display:flex;gap:8px;align-items:center}
 .row>*{flex:1;min-width:0}
 .row>.fit{flex:0 0 auto}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.stat b{display:block;font-size:22px;font-weight:800;line-height:1.25;direction:ltr;text-align:right}
-.stat span{color:var(--mute);font-size:12px}
-.acc{color:var(--acc)} .blue{color:var(--blue)} .amber{color:var(--amber)} .pink{color:var(--pink)} .warn{color:var(--warn)}
-.mute{color:var(--mute);font-size:13px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.num{font-family:var(--display);font-weight:800;font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.stat b{display:block;font-family:var(--display);font-size:24px;font-weight:800;line-height:1.2;direction:ltr;text-align:right;font-variant-numeric:tabular-nums}
+.stat span{color:var(--ink-2);font-size:12px}
+.acc,.green{color:var(--green)} .blue{color:var(--blue)} .amber,.yellow{color:var(--yellow)} .pink,.red{color:var(--red)} .warn{color:var(--red)}
+.mute{color:var(--ink-2);font-size:13px}
 .ltr{direction:ltr;unicode-bidi:isolate}
-input,select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;
-  padding:11px 12px;font:inherit;outline:none}
-input:focus,select:focus{border-color:var(--acc)}
-input[type=number]{direction:ltr;text-align:center}
-label{font-size:12px;color:var(--mute);display:block;margin-bottom:4px}
-button{font:inherit;border:0;border-radius:12px;padding:11px 14px;cursor:pointer;background:var(--line);color:var(--text);font-weight:600}
-button.p{background:var(--acc);color:var(--acc-ink)}
-button.g{background:none;color:var(--mute);padding:6px 8px}
+.hide{display:none!important}
+
+input,select{width:100%;background:var(--surface-2);color:var(--ink);border:1px solid transparent;border-radius:var(--r-sm);
+  padding:11px 12px;font:inherit;outline:none;min-height:44px}
+input:focus,select:focus{border-color:var(--focus);background:var(--surface)}
+input[type=number]{direction:ltr;text-align:center;font-variant-numeric:tabular-nums}
+input::placeholder{color:var(--ink-3)}
+label{font-size:12px;color:var(--ink-2);display:block;margin-bottom:4px}
+button{font:inherit;border:0;border-radius:var(--r-sm);padding:11px 16px;cursor:pointer;background:var(--surface-2);color:var(--ink);font-weight:600;min-height:44px}
+button.p{background:var(--btn);color:var(--btn-ink)}
+button.g{background:none;color:var(--ink-2);padding:6px 8px;min-height:36px}
 button.w{width:100%}
-button.sm{padding:6px 10px;font-size:13px;border-radius:10px}
-button:active{transform:scale(.97)}
+button.sm{padding:6px 12px;font-size:13px;min-height:36px}
+button.big{padding:15px;font-size:16px;border-radius:var(--r-md)}
+button:active{transform:scale(.98)}
 .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
-.chip{white-space:nowrap;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600;color:var(--text)}
-.chip.on{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
-.tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--card2);color:var(--mute)}
-.tag.acc{background:rgba(198,244,50,.12);color:var(--acc)}
-.tag.warn{background:rgba(255,107,91,.12);color:var(--warn)}
-.tag.blue{background:rgba(91,184,255,.12);color:var(--blue)}
-.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:6px}
-.bar i{display:block;height:100%;background:var(--c,var(--acc));border-radius:99px;transition:width .3s}
+.chip{white-space:nowrap;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:13px;font-weight:500;color:var(--ink);min-height:36px}
+.chip.on{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.tag{display:inline-block;font-size:12px;font-weight:500;padding:2px 9px;border-radius:99px;background:var(--surface-2);color:var(--ink-2)}
+.tag.acc{background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green)}
+.tag.blue{background:color-mix(in srgb,var(--blue) 14%,transparent);color:var(--blue)}
+.tag.warn{background:color-mix(in srgb,var(--red) 14%,transparent);color:var(--red)}
+.bar{height:8px;background:var(--surface-2);border-radius:99px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--c,var(--green));border-radius:99px;transition:width .4s}
 .list{list-style:none;margin:0;padding:0}
-.list li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);gap:8px}
+.list li{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);gap:10px}
 .list li:last-child{border:0}
-.hide{display:none!important}
-.del{color:var(--warn)}
+.del{color:var(--red)}
 
-.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center}
-.week div{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:6px 0;font-size:11px;color:var(--mute)}
-.week div b{display:block;font-size:12px;color:var(--text);font-weight:600}
-.week .today{border-color:var(--acc)}
-.week .done{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
-.week .done b{color:var(--acc-ink)}
-
-.ready{display:grid;grid-template-columns:56px 1fr 1fr 1fr;gap:6px;align-items:center;margin:5px 0}
-.ready span{font-size:13px;color:var(--mute)}
-.ready button{padding:7px 0;font-size:13px;background:var(--bg);border:1px solid var(--line)}
-.ready button.on{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
-
+.hero{padding:6px 4px 4px}
+.hero .kicker{color:var(--ink-2);font-size:14px}
+.hero .name{font-family:var(--display);font-size:46px;font-weight:800;line-height:1.05;margin:2px 0 6px;letter-spacing:-.5px}
+.hero .desc{color:var(--ink-2);font-size:15px;margin:0}
+.barbell{width:100%;height:auto;display:block;margin:14px 0 12px;direction:ltr}
+.barbell .plate{transform-box:fill-box;transform-origin:center}
+.barbell .plate.new{animation:plateOn .5s cubic-bezier(.2,.8,.2,1)}
+@keyframes plateOn{from{transform:translateX(var(--dx,40px));opacity:0}to{transform:none;opacity:1}}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-top:4px}
+.week div{font-size:11px;color:var(--ink-3);padding:6px 0;border-radius:var(--r-sm)}
+.week div b{display:block;font-size:12px;color:var(--ink-2);font-weight:600}
+.week .today{background:var(--surface)}
+.week .today b{color:var(--ink)}
+.week .done b{color:var(--green)}
+.week .done b::before{content:'● '}
+.ready{display:grid;grid-template-columns:64px repeat(3,1fr);gap:6px;align-items:center;margin:6px 0}
+.ready span{font-size:13px;color:var(--ink-2)}
+.ready button{padding:6px 0;font-size:17px;background:var(--surface-2);min-height:40px}
+.ready button.on{background:var(--btn);color:var(--btn-ink)}
+.energy{font-family:var(--display);font-weight:800;font-size:40px;line-height:1.1;direction:ltr;text-align:right;font-variant-numeric:tabular-nums}
+.macros{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.macros .stat b{font-size:17px}
 .coach{list-style:none;margin:0;padding:0}
-.coach li{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.coach li{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:14px}
 .coach li:last-child{border:0}
 .coach li i{font-style:normal;flex:0 0 22px;text-align:center}
-
-.ex{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
-.ex:first-child{border:0;margin:0;padding:0}
-.ex-h{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
-.ex-h b{font-size:16px;display:block;line-height:1.3}
-.ex-h small{color:var(--mute);font-size:12px}
-.target{margin:6px 0 2px;font-size:13px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.set{display:grid;grid-template-columns:22px 1fr 1fr 46px 42px;gap:6px;align-items:center;margin:6px 0}
-.set .n{color:var(--mute);text-align:center;font-size:13px}
-.set input{padding:10px 4px}
-.set.head{margin:8px 0 0;font-size:11px;color:var(--mute);text-align:center}
-.set .rir{padding:0;height:42px;background:var(--bg);border:1px solid var(--line);font-size:13px;color:var(--mute)}
-.set .rir.kc{display:flex;align-items:center;justify-content:center;border-radius:12px;color:var(--amber);font-weight:600}
-select.unit{width:auto;flex:0 0 auto;padding:7px 4px;font-size:12px;max-width:92px}
-.tick{background:var(--bg);border:1px solid var(--line);padding:0;height:42px;border-radius:12px;color:var(--mute);font-size:18px}
-.set.done input{border-color:rgba(198,244,50,.5)}
-.set.done .tick{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
-.banner{border-radius:14px;padding:10px 12px;font-size:13px;margin-bottom:10px;background:rgba(91,184,255,.1);color:var(--blue)}
-.banner.warn{background:rgba(255,194,75,.1);color:var(--amber)}
-
-#rest{position:fixed;inset-inline:12px;bottom:calc(76px + env(safe-area-inset-bottom));max-width:536px;margin:auto;z-index:6;
-  background:var(--card2);border:1px solid var(--line);border-radius:16px;padding:10px 12px;display:flex;align-items:center;gap:8px;
-  box-shadow:0 10px 30px rgba(0,0,0,.5)}
-#rest .t{font-size:24px;font-weight:800;direction:ltr;min-width:66px}
-#rest .rb{flex:1;height:6px;background:var(--line);border-radius:99px;overflow:hidden}
-#rest .rb i{display:block;height:100%;background:var(--acc)}
-#rest button{direction:ltr}
-#rest.end .t{color:var(--acc)}
-
-.macro{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.macro .stat b{font-size:17px}
-.food-it{display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer}
-.food-it:active{background:var(--card2)}
-.water{display:flex;gap:4px;flex-wrap:wrap}
-.water i{flex:1;max-width:24px;height:22px;border-radius:4px 4px 7px 7px;background:var(--line)}
+.water{display:flex;gap:4px}
+.water i{flex:1;max-width:22px;height:22px;border-radius:4px 4px 7px 7px;background:var(--surface-2)}
 .water i.on{background:var(--blue)}
 
-svg.chart{width:100%;height:180px;display:block}
-.vol{display:grid;grid-template-columns:58px 1fr 40px;gap:8px;align-items:center;margin:7px 0;font-size:13px}
-.vol .track{height:10px;background:var(--line);border-radius:99px;position:relative;overflow:hidden}
-.vol .band{position:absolute;top:0;bottom:0;background:rgba(198,244,50,.18)}
-.vol .fill{position:absolute;top:2px;bottom:2px;right:0;border-radius:99px;background:var(--acc)}
-.vol .fill.low{background:var(--amber)} .vol .fill.hi{background:var(--warn)}
-.heat{display:grid;grid-template-rows:repeat(7,1fr);grid-auto-flow:column;gap:3px}
-.heat i{aspect-ratio:1;border-radius:3px;background:var(--line)}
-.heat i.on{background:var(--acc)}
-.heat i.fut{background:transparent}
-
-dialog{border:0;padding:0;background:transparent;max-width:560px;width:100%;margin:auto auto 0;max-height:90vh}
-dialog::backdrop{background:rgba(0,0,0,.6)}
-.sheet{background:var(--card);border:1px solid var(--line);border-bottom:0;border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));
-  color:var(--text);max-height:90vh;overflow:auto}
-.sheet h3{margin:0 0 4px;font-size:18px}
-.grip{width:40px;height:4px;border-radius:9px;background:var(--line);margin:-6px auto 12px}
-
-
-.week .plan b{color:var(--mute);font-weight:400}
-.how{margin:8px 0 4px;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:0 12px}
-.how summary{cursor:pointer;padding:10px 0;font-size:13px;font-weight:600;color:var(--acc);list-style:none;display:flex;justify-content:space-between}
+.wk-head{position:sticky;top:0;z-index:4;background:var(--bg);padding:8px 4px 2px;margin:0 -4px}
+.wk-head .barbell{margin:6px 0 0}
+.ex{background:var(--surface);border-radius:var(--r-lg);padding:16px;margin:12px 0}
+.ex-h{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.ex-h b{font-family:var(--display);font-size:17px;font-weight:600;display:block;line-height:1.35}
+.ex-h small{color:var(--ink-3);font-size:12px}
+.target{margin:8px 0 2px;font-size:13px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.set{display:grid;grid-template-columns:20px 58px 1fr 1fr 42px 44px;gap:6px;align-items:center;margin:6px 0}
+.set .n{color:var(--ink-3);text-align:center;font-size:13px;font-family:var(--display)}
+.set .prev{color:var(--ink-3);font-size:12px;text-align:center;direction:ltr;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.set input{padding:10px 2px;font-weight:600}
+.set.head{margin:12px 0 0;font-size:11px;color:var(--ink-3);text-align:center}
+.set .rir{padding:0;height:44px;min-height:44px;background:var(--surface-2);font-size:13px;color:var(--ink-2)}
+.set .rir.kc{display:flex;align-items:center;justify-content:center;border-radius:var(--r-sm);color:var(--red);font-weight:600}
+.tick{background:var(--surface-2);padding:0;height:44px;color:var(--ink-3);font-size:18px}
+.set.done input{background:color-mix(in srgb,var(--green) 12%,var(--surface))}
+.set.done .tick{background:var(--green);color:#fff}
+.banner{border-radius:var(--r-md);padding:11px 13px;font-size:13px;margin-bottom:10px;background:color-mix(in srgb,var(--blue) 10%,transparent);color:var(--blue)}
+.banner.warn{background:color-mix(in srgb,var(--yellow) 16%,transparent);color:color-mix(in srgb,var(--yellow) 55%,var(--ink))}
+select.unit{width:auto;flex:0 0 auto;padding:7px 4px;font-size:12px;max-width:96px;min-height:38px}
+.how{margin:10px 0 4px;background:var(--surface-2);border-radius:var(--r-md);padding:0 12px}
+.how summary{cursor:pointer;padding:10px 0;font-size:13px;font-weight:600;color:var(--blue);list-style:none;display:flex;justify-content:space-between}
 .how summary::-webkit-details-marker{display:none}
 .how summary::after{content:'▾';transition:transform .2s}
 .how[open] summary::after{transform:rotate(180deg)}
 .how-img{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.how-img img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;background:#fff}
+.how-img img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--r-sm);background:#fff}
 .how ol{margin:10px 0 0;padding-inline-start:20px;font-size:14px}
 .how ol li{margin:4px 0}
 .how[open]{padding-bottom:12px}
-.fb-it{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
-.stepper{display:flex;align-items:center;gap:4px;flex:0 0 auto}
-.stepper button{padding:0;width:34px;height:36px;border-radius:10px}
-.stepper input{width:58px;padding:7px 2px}
 details summary{cursor:pointer}
-nav{position:fixed;bottom:0;inset-inline:0;background:rgba(14,15,17,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:5}
-nav button{background:none;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;padding:4px 12px}
-nav button svg{width:22px;height:22px}
-nav button.on{color:var(--acc)}
-.toast{position:fixed;top:calc(14px + env(safe-area-inset-top));left:50%;transform:translate(-50%,-20px);background:var(--acc);color:var(--acc-ink);
+
+#rest{position:fixed;inset-inline:12px;bottom:calc(80px + env(safe-area-inset-bottom));max-width:576px;margin:auto;z-index:6;
+  background:var(--btn);color:var(--btn-ink);border-radius:var(--r-md);padding:10px 12px;display:flex;align-items:center;gap:8px;
+  box-shadow:0 12px 32px rgba(16,21,31,.28)}
+#rest .t{font-family:var(--display);font-size:26px;font-weight:800;direction:ltr;min-width:70px;font-variant-numeric:tabular-nums}
+#rest .rb{flex:1;height:6px;background:color-mix(in srgb,var(--btn-ink) 22%,transparent);border-radius:99px;overflow:hidden}
+#rest .rb i{display:block;height:100%;background:var(--green)}
+#rest button{direction:ltr;background:color-mix(in srgb,var(--btn-ink) 14%,transparent);color:var(--btn-ink)}
+#rest.end .t{color:var(--green)}
+
+.macro{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.macro .stat b{font-size:18px}
+.slot-h{display:flex;justify-content:space-between;align-items:center;padding:14px 0 2px}
+.slot-h b{font-family:var(--display);font-weight:600;font-size:15px}
+.food-it{display:flex;justify-content:space-between;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line);cursor:pointer;gap:10px}
+.food-it:active{background:var(--surface-2)}
+.fb-it{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.stepper{display:flex;align-items:center;gap:4px;flex:0 0 auto}
+.stepper button{padding:0;width:36px;min-height:38px;height:38px}
+.stepper input{width:58px;padding:7px 2px;min-height:38px}
+
+svg.chart{width:100%;height:auto;display:block}
+.vol{display:grid;grid-template-columns:70px 1fr 40px;gap:10px;align-items:center;margin:8px 0;font-size:13px}
+.vol .track{height:10px;background:var(--surface-2);border-radius:99px;position:relative;overflow:hidden}
+.vol .band{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--green) 22%,transparent)}
+.vol .fill{position:absolute;top:2px;bottom:2px;right:0;border-radius:99px;background:var(--green)}
+.vol .fill.low{background:var(--yellow)} .vol .fill.hi{background:var(--red)}
+.heat{display:grid;grid-template-rows:repeat(7,1fr);grid-auto-flow:column;gap:3px}
+.heat i{aspect-ratio:1;border-radius:3px;background:var(--surface-2)}
+.heat i.on{background:var(--green)}
+.heat i.fut{background:transparent}
+
+dialog{border:0;padding:0;background:transparent;max-width:600px;width:100%;margin:auto auto 0;max-height:92vh}
+dialog::backdrop{background:rgba(16,21,31,.45)}
+dialog[open] .sheet{animation:sheetUp .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes sheetUp{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+.sheet{background:var(--surface);border-radius:24px 24px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));
+  color:var(--ink);max-height:92vh;overflow:auto}
+.sheet h3{font-family:var(--display);margin:0 0 4px;font-size:20px;font-weight:800}
+.sheet .card{background:var(--surface-2)}
+.grip{width:40px;height:4px;border-radius:9px;background:var(--line);margin:-6px auto 12px}
+nav{position:fixed;bottom:0;inset-inline:0;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:6px 0 calc(6px + env(safe-area-inset-bottom));z-index:5}
+nav button{background:none;color:var(--ink-3);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;padding:4px 14px;font-weight:500}
+nav button svg{width:24px;height:24px}
+nav button.on{color:var(--ink)}
+nav button.on svg{stroke-width:2.4}
+.toast{position:fixed;top:calc(14px + env(safe-area-inset-top));left:50%;transform:translate(-50%,-20px);background:var(--btn);color:var(--btn-ink);
   padding:10px 18px;border-radius:99px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;z-index:99;max-width:90%;text-align:center}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 </style>
@@ -168,220 +205,213 @@ nav button.on{color:var(--acc)}
 <header>
   <div><h1 id="title">اليوم</h1><small id="sub"></small></div>
   <button class="g" onclick="go('set')" aria-label="الإعدادات">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
   </button>
 </header>
 
 <main>
-  <!-- ===== اليوم ===== -->
   <section id="v-home">
-    <div class="card"><div class="week" id="h-week"></div></div>
+    <div class="hero" id="h-work"></div>
+    <div class="week" id="h-week"></div>
+    <span id="h-meso" class="hide"></span>
 
     <div class="card">
-      <h2><span>تمرين النهارده</span><span id="h-meso"></span></h2>
-      <div id="h-work"></div>
+      <h2>الأكل النهارده <button class="g sm" onclick="go('food')">افتح الأكل</button></h2>
+      <div id="h-nut"></div>
     </div>
 
     <div class="card">
-      <h2><span>حاسس بإيه النهارده؟</span><span class="mute" id="h-ready-s"></span></h2>
+      <h2>حاسس بإيه؟ <small id="h-ready-s"></small></h2>
       <div id="h-ready"></div>
     </div>
 
     <div class="card">
-      <h2><span>التغذية</span><button class="g sm" onclick="go('food')">فتح ←</button></h2>
-      <div class="grid2" id="h-nut"></div>
-      <div class="water" id="h-water" style="margin-top:14px"></div>
-      <div class="row" style="margin-top:8px">
-        <span class="mute" id="h-water-t"></span>
-        <button class="fit sm" onclick="water(-1)">−</button>
-        <button class="fit sm p" onclick="water(1)">+ كوباية</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2><span>الوزن والخطوات</span><span class="mute" id="h-wtrend"></span></h2>
+      <h2>الوزن والحركة <small id="h-wtrend"></small></h2>
       <div class="row">
-        <input type="number" step="0.1" inputmode="decimal" id="h-w" placeholder="الوزن كجم">
-        <input type="number" inputmode="numeric" id="h-steps" placeholder="خطوات">
+        <input type="number" step="0.1" inputmode="decimal" id="h-w" placeholder="الوزن (كجم)" aria-label="الوزن">
+        <input type="number" inputmode="numeric" id="h-steps" placeholder="الخطوات" aria-label="الخطوات">
         <button class="p fit" onclick="saveDaily()">سجّل</button>
       </div>
+      <div id="h-stepsbar" style="margin-top:12px"></div>
+      <div style="margin-top:14px">
+        <div class="row"><span class="mute" id="h-water-t"></span>
+          <button class="fit sm" onclick="water(-1)" aria-label="شيل كوباية">−</button>
+          <button class="fit sm p" onclick="water(1)">+ كوباية مية</button></div>
+        <div class="water" id="h-water" style="margin-top:8px"></div>
+      </div>
     </div>
 
     <div class="card">
-      <h2>المدرب</h2>
+      <h2>ملاحظات المدرب</h2>
       <ul class="coach" id="h-coach"></ul>
     </div>
   </section>
 
-  <!-- ===== تمرين ===== -->
   <section id="v-work" class="hide">
-    <div class="card">
-      <div class="chips" id="w-tpl"></div>
-    </div>
-    <div class="card">
-      <div id="w-banner"></div>
+    <div class="chips" id="w-tpl" style="margin:8px 0 4px"></div>
+    <div class="wk-head">
       <div class="row">
-        <div><b id="w-title" style="font-size:18px"></b><div class="mute" id="w-meta"></div></div>
-        <input type="date" id="w-date" class="fit" style="width:148px" onchange="syncHead()">
+        <div><b id="w-title" style="font-family:var(--display);font-size:22px;font-weight:800;display:block;line-height:1.2"></b><div class="mute" id="w-meta"></div></div>
+        <input type="date" id="w-date" class="fit" style="width:150px" onchange="syncHead()" aria-label="تاريخ التمرين">
       </div>
-      <div id="w-ex" style="margin-top:14px"></div>
-      <button class="w" style="margin-top:16px" onclick="openPicker()">+ أضف تمرين</button>
-      <button class="p w" style="margin-top:10px;padding:14px" onclick="finishWorkout()">إنهاء وحفظ التمرين ✓</button>
+      <div id="w-bar"></div>
     </div>
-    <div class="card">
+    <div id="w-banner"></div>
+    <div id="w-ex"></div>
+    <button class="w" style="margin-top:4px" onclick="openPicker()">+ أضف تمرين</button>
+    <button class="p w big" style="margin-top:10px" onclick="finishWorkout()">إنهاء وحفظ التمرين</button>
+    <div class="card" style="margin-top:22px">
       <h2>السجل</h2>
       <ul class="list" id="w-hist"></ul>
     </div>
   </section>
 
-  <!-- ===== أكل ===== -->
   <section id="v-food" class="hide">
-    <div class="card">
-      <div class="row" style="margin-bottom:12px">
-        <button class="g fit" onclick="shiftDay(-1)">→</button>
-        <input type="date" id="f-date" onchange="renderFood()">
-        <button class="g fit" onclick="shiftDay(1)">←</button>
-      </div>
-      <div class="macro" id="f-macro"></div>
+    <div class="row" style="margin:8px 0">
+      <button class="g fit" onclick="shiftDay(-1)" aria-label="اليوم اللي قبله">‹ قبله</button>
+      <input type="date" id="f-date" onchange="renderFood()" aria-label="اليوم">
+      <button class="g fit" onclick="shiftDay(1)" aria-label="اليوم اللي بعده">بعده ›</button>
     </div>
+    <div class="card"><div id="f-macro"></div></div>
     <div class="card">
-      <h2>اقتراح النهارده</h2>
+      <h2>اقتراح</h2>
       <div id="f-sugg"></div>
     </div>
     <div class="card">
-      <button class="p w" onclick="openBuilder()">+ سجّل وجبة (اكتب أكلت إيه)</button>
-      <div class="chips" id="f-quick" style="margin-top:12px"></div>
+      <h2>أكلت إيه</h2>
+      <div id="f-list"></div>
+      <div class="chips" id="f-quick" style="margin-top:14px"></div>
     </div>
     <div class="card">
-      <h2><span>النظام الرخيص (اقتراح، عدّل عليه براحتك)</span><span class="mute" id="f-plan-t"></span></h2>
+      <h2>النظام الرخيص <small id="f-plan-t"></small></h2>
+      <p class="mute" style="margin:-6px 0 8px">اقتراح بس، وتقدر تعدّل أي وجبة قبل ما تسجلها.</p>
       <ul class="list" id="f-plan"></ul>
-    </div>
-    <div class="card">
-      <h2>أكلت إيه النهارده</h2>
-      <ul class="list" id="f-list"></ul>
     </div>
   </section>
 
-  <!-- ===== تقدم ===== -->
   <section id="v-prog" class="hide">
     <div class="grid3" style="margin-top:12px">
-      <div class="card stat" style="margin:0"><b id="p-w">—</b><span>الوزن (متوسط)</span></div>
-      <div class="card stat" style="margin:0"><b id="p-rate">—</b><span>كجم / أسبوع</span></div>
+      <div class="card stat" style="margin:0"><b id="p-w">—</b><span>الوزن (المتوسط)</span></div>
+      <div class="card stat" style="margin:0"><b id="p-rate">—</b><span>كجم في الأسبوع</span></div>
       <div class="card stat" style="margin:0"><b id="p-n">0</b><span>تمارين الأسبوع</span></div>
     </div>
     <div class="card">
-      <h2><span>الوزن</span><span class="mute">نقط: يومي · خط: متوسط</span></h2>
+      <h2>حرقك الفعلي <small>من أكلك ووزنك</small></h2>
+      <div id="p-tdee"></div>
+    </div>
+    <div class="card">
+      <h2>الوزن <small>النقط: كل يوم، والخط: المتوسط</small></h2>
       <div id="p-wchart"></div>
     </div>
     <div class="card">
-      <h2><span>الحجم الأسبوعي (آخر 7 أيام)</span><span class="mute">مجموعات</span></h2>
+      <h2>الحجم الأسبوعي <small>مجموعات آخر 7 أيام</small></h2>
       <div id="p-vol"></div>
-      <p class="mute" style="margin:8px 0 0">المنطقة الفاتحة هي الحجم المثالي. هدف الكتف والدراع أعلى عشان هما التركيز.</p>
+      <p class="mute" style="margin:8px 0 0">المنطقة الملوّنة هي الحجم المناسب. هدف الأكتاف والذراع أعلى عشان عليهم التركيز.</p>
     </div>
     <div class="card">
-      <h2>القوة (1RM تقديري)</h2>
-      <select id="p-ex" onchange="renderExChart()" style="margin-bottom:10px"></select>
+      <h2>القوة <small>أقصى وزن لعدّة واحدة (تقديري)</small></h2>
+      <select id="p-ex" onchange="renderExChart()" style="margin-bottom:10px" aria-label="التمرين"></select>
       <div id="p-exchart"></div>
     </div>
     <div class="card">
-      <h2>الالتزام (آخر 12 أسبوع)</h2>
+      <h2>الالتزام <small>آخر 12 أسبوع</small></h2>
       <div class="heat" id="p-heat"></div>
     </div>
     <div class="card">
-      <h2>المقاسات (سم)</h2>
+      <h2>المقاسات <small>بالسنتيمتر</small></h2>
       <div class="grid4">
-        <div><label>وسط</label><input type="number" step="0.5" id="m-waist"></div>
-        <div><label>دراع</label><input type="number" step="0.5" id="m-arm"></div>
-        <div><label>صدر</label><input type="number" step="0.5" id="m-chest"></div>
-        <div><label>كتف</label><input type="number" step="0.5" id="m-sh"></div>
+        <div><label for="m-waist">الوسط</label><input type="number" step="0.5" id="m-waist"></div>
+        <div><label for="m-arm">الدراع</label><input type="number" step="0.5" id="m-arm"></div>
+        <div><label for="m-chest">الصدر</label><input type="number" step="0.5" id="m-chest"></div>
+        <div><label for="m-sh">الكتف</label><input type="number" step="0.5" id="m-sh"></div>
       </div>
       <button class="w" style="margin-top:10px" onclick="saveMeas()">سجّل المقاسات</button>
       <ul class="list" id="p-meas" style="margin-top:6px"></ul>
     </div>
     <div class="card">
-      <h2>أرقامك القياسية 🏆</h2>
+      <h2>أرقامك القياسية</h2>
       <ul class="list" id="p-prs"></ul>
     </div>
   </section>
 
-  <!-- ===== إعدادات ===== -->
   <section id="v-set" class="hide">
     <div class="card">
       <h2>بياناتك</h2>
       <div class="grid3">
-        <div><label>الطول (سم)</label><input type="number" id="s-h"></div>
-        <div><label>الوزن (كجم)</label><input type="number" step="0.1" id="s-w"></div>
-        <div><label>الدهون %</label><input type="number" id="s-bf"></div>
+        <div><label for="s-h">الطول (سم)</label><input type="number" id="s-h"></div>
+        <div><label for="s-w">الوزن (كجم)</label><input type="number" step="0.1" id="s-w"></div>
+        <div><label for="s-bf">نسبة الدهون %</label><input type="number" id="s-bf"></div>
       </div>
-      <div class="grid2" style="margin-top:10px">
-        <div><label>حركتك برا الجيم</label>
+      <div class="grid2" style="margin-top:12px">
+        <div><label for="s-act">حركتك برّه الجيم</label>
           <select id="s-act">
             <option value="1.45">قاعد أغلب اليوم</option>
-            <option value="1.6">متوسط</option>
+            <option value="1.6">متوسطة</option>
             <option value="1.75">شغلي فيه حركة</option>
           </select></div>
-        <div><label>الهدف</label>
+        <div><label for="s-goal">الهدف</label>
           <select id="s-goal">
-            <option value="cut">تنشيف</option>
-            <option value="recomp">ريكومب (دهون ↓ عضل ↑)</option>
+            <option value="cut">تنشيف (خسارة دهون)</option>
+            <option value="recomp">ريكومب (دهون أقل وعضل أكتر ببطء)</option>
             <option value="maint">ثبات</option>
             <option value="bulk">تضخيم نضيف</option>
           </select></div>
       </div>
-      <div class="grid2" style="margin-top:10px">
-        <div><label>بداية الدورة التدريبية</label><input type="date" id="s-meso"></div>
-        <div><label>تعديل السعرات ±</label><input type="number" step="50" id="s-adj"></div>
+      <div class="grid2" style="margin-top:12px">
+        <div><label for="s-meso">بداية الدورة التدريبية</label><input type="date" id="s-meso"></div>
+        <div><label for="s-adj">تعديل السعرات يدويًا</label><input type="number" step="50" id="s-adj"></div>
       </div>
-      <button class="p w" style="margin-top:12px" onclick="saveProfile()">حفظ</button>
+      <button class="p w" style="margin-top:14px" onclick="saveProfile()">احفظ</button>
     </div>
     <div class="card">
       <h2>أهدافك اليومية</h2>
       <div class="grid4" id="s-calc"></div>
-      <p class="mute" id="s-note" style="margin:10px 0 0"></p>
+      <p class="mute" id="s-note" style="margin:12px 0 0"></p>
     </div>
     <div class="card">
-      <h2>الفلسفة اللي التطبيق ماشي بيها</h2>
+      <h2>إزاي التطبيق بيفكّر</h2>
       <ul class="coach">
-        <li><i>📈</i><span><b>Double Progression:</b> ليك نطاق عدات، مثلًا 8-12. زوّد عدة كل مرة لحد ما توصل للآخر في كل المجموعات، وبعدها زوّد الوزن وارجع لأول النطاق. التطبيق بيحسبلك الهدف لوحده.</span></li>
-        <li><i>🎯</i><span><b>RIR:</b> معناها كام عدة كان ممكن تعملها زيادة. خليها 1-2 في أغلب المجموعات، ومفيش داعي توصل للفشل كل مرة.</span></li>
-        <li><i>📊</i><span><b>الحجم الأسبوعي:</b> العضلة بتكبر بعدد المجموعات الصعبة في الأسبوع. التطبيق بيعدّها لكل عضلة، وبيحسب التمرين المساعد بنص مجموعة.</span></li>
-        <li><i>🔄</i><span><b>Deload:</b> 4 أسابيع تقيلة وبعدهم أسبوع خفيف، مجموعات أقل ووزن أقل 10%، عشان جسمك يستشفى.</span></li>
-        <li><i>⚖️</i><span><b>سعرات بتتظبط لوحدها:</b> التطبيق بيحسب متوسط وزنك مش وزن يوم واحد. لو نزولك أسرع أو أبطأ من هدفك بيقترح تعديل السعرات بعد أسبوعين.</span></li>
-        <li><i>🔁</i><span><b>ترتيب مرن:</b> البرنامج مش مربوط بأيام الأسبوع. لو فوّت يوم، التطبيق بيكمّل من التمرين اللي عليك، وبيقترح راحة بعد يوم الرجل ويوم Upper.</span></li>
-        <li><i>🏃</i><span><b>الكارديو:</b> 15 دقيقة مشي بميل في آخر كل تمرين (ما عدا يوم الرجل)، ومعاهم 8-10 آلاف خطوة في اليوم. السعرات المحروقة بتتحسب من وزنك وسرعتك والمدة، ومش بتتضاف لهدف الأكل عشان هي محسوبة أصلًا في معدل حركتك.</span></li>
-        <li><i>😴</i><span><b>الجاهزية:</b> لو نومك وطاقتك وحشين، التمرين بيخفّ لوحده مجموعة من كل تمرين.</span></li>
+        <li><i>🔥</i><span><b>الأولوية للتنشيف:</b> الدهون بتنزل بعجز في السعرات، مش بالتمرين لوحده. التمرين التقيل بيحافظ على عضلك، والبروتين العالي والخطوات بيكمّلوا الصورة.</span></li>
+        <li><i>📈</i><span><b>زيادة تدريجية:</b> ليك نطاق عدّات، مثلًا 8-12. زوّد عدّة كل مرة، ولما توصل للآخر في كل المجموعات زوّد الوزن. التطبيق بيحسبلك الهدف قبل كل تمرين.</span></li>
+        <li><i>🎯</i><span><b>RIR:</b> هي عدد العدّات اللي كان ممكن تعملها زيادة. خليها 1-2 في أغلب المجموعات.</span></li>
+        <li><i>📊</i><span><b>الحجم الأسبوعي:</b> بيعدّ المجموعات الصعبة لكل عضلة، والتمرين المساعد بيتحسب نص مجموعة.</span></li>
+        <li><i>🔄</i><span><b>أسبوع خفيف (Deload):</b> بعد كل 4 أسابيع تقيلة، أسبوع بوزن أقل 10% ومجموعات أقل.</span></li>
+        <li><i>⚖️</i><span><b>سعرات بتتظبط لوحدها:</b> التطبيق بيحسب حرقك الفعلي من أكلك واتجاه وزنك، وبيقترح تعديل لو النزول أسرع أو أبطأ من هدفك.</span></li>
+        <li><i>🔁</i><span><b>ترتيب مرن:</b> البرنامج مش مربوط بأيام الأسبوع. لو فوّت يوم، بيكمّل من التمرين اللي عليك.</span></li>
+        <li><i>🏃</i><span><b>الكارديو:</b> مشي بميل في آخر التمرين، ومعاه 10 آلاف خطوة في اليوم. السعرات المحروقة مش بتتضاف لهدف الأكل، لأنها محسوبة أصلًا في حركتك.</span></li>
+        <li><i>😴</i><span><b>الجاهزية:</b> لو نومك وطاقتك مش كويسين، التمرين بيخفّ لوحده.</span></li>
       </ul>
     </div>
     <div class="card">
       <h2>نسخة احتياطية</h2>
-      <p class="mute" style="margin-top:0">البيانات محفوظة على تلفونك بس، فخد نسخة كل فترة.</p>
+      <p class="mute" style="margin-top:0">بياناتك متخزنة على تلفونك بس. صدّر نسخة كل فترة واحفظها في مكان أمان.</p>
       <div class="row">
-        <button onclick="exportData()">تصدير ⬇</button>
-        <button onclick="$('imp').click()">استيراد ⬆</button>
+        <button onclick="exportData()">صدّر نسخة</button>
+        <button onclick="$('imp').click()">استرجع نسخة</button>
       </div>
       <input type="file" id="imp" accept=".json,application/json" class="hide" onchange="importData(this)">
-      <button class="g w del" style="margin-top:10px" onclick="resetAll()">مسح كل البيانات</button>
+      <button class="g w del" style="margin-top:10px" onclick="resetAll()">امسح كل البيانات</button>
     </div>
   </section>
 </main>
 
-<div id="rest" class="hide">
+<div id="rest" class="hide" role="timer" aria-live="polite">
   <div class="t" id="rest-t">0:00</div>
   <div class="rb"><i id="rest-b"></i></div>
-  <button class="sm" onclick="restAdd(-15)">−15</button>
-  <button class="sm" onclick="restAdd(15)">+15</button>
-  <button class="sm g" onclick="restStop()">✕</button>
+  <button class="sm" onclick="restAdd(-15)" aria-label="قلّل 15 ثانية">−15</button>
+  <button class="sm" onclick="restAdd(15)" aria-label="زوّد 15 ثانية">+15</button>
+  <button class="sm" onclick="restStop()" aria-label="وقّف المؤقت">✕</button>
 </div>
 
 <dialog id="sheet" onclick="if(event.target===this)closeSheet()"><div class="sheet" id="sheet-c"></div></dialog>
 
-<nav>
-  <button data-v="home" class="on" onclick="go('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8v10H3z"/></svg>اليوم</button>
-  <button data-v="work" onclick="go('work')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 7v10M3 9v6M18 7v10M21 9v6M6 12h12"/></svg>تمرين</button>
-  <button data-v="food" onclick="go('food')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 2c-2 0-3 3-3 6s1 4 3 4v10"/></svg>أكل</button>
-  <button data-v="prog" onclick="go('prog')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M5 16l5-5 4 3 6-7"/></svg>تقدم</button>
+<nav aria-label="التنقل">
+  <button data-v="home" class="on" onclick="go('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 11l9-8 9 8v10h-6v-6H9v6H3z"/></svg>اليوم</button>
+  <button data-v="work" onclick="go('work')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12h20M5 8v8M8 6v12M16 6v12M19 8v8"/></svg>التمرين</button>
+  <button data-v="food" onclick="go('food')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 2v20M4 2v6a3 3 0 0 0 6 0V2M17 2c-2 0-3 3-3 6s1 4 3 4v10"/></svg>الأكل</button>
+  <button data-v="prog" onclick="go('prog')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 20h18M5 16l5-5 4 3 6-7"/></svg>التقدم</button>
 </nav>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="data.js"></script>
 <script src="foods.js"></script>
