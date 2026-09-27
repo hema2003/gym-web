@@ -124,7 +124,7 @@ svg.chart{width:100%;height:180px;display:block}
     </div>
     <div class="card">
       <div class="row" style="margin-bottom:12px">
-        <input id="w-name" placeholder="اسم التمرين (مثلاً: Upper A)">
+        <input id="w-name" placeholder="اسم التمرين (مثلاً: Push)">
         <input type="date" id="w-date" style="flex:0 0 150px">
       </div>
       <div id="w-ex"></div>
@@ -164,6 +164,11 @@ svg.chart{width:100%;height:180px;display:block}
       </div>
       <button class="p w" style="margin-top:12px" onclick="addMeal()">أضف</button>
       <div class="chips" id="m-quick" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <h2>نظام أكل رخيص (اضغط على الوجبة لما تاكلها)</h2>
+      <ul class="list" id="m-plan"></ul>
+      <p class="mute" style="margin:8px 0 0">بدائل رخيصة للبروتين: عدس، كبدة فراخ، بيض، لبن، سردين. لو الوزن ثابت أسبوعين قلّل رغيف.</p>
     </div>
     <div class="card">
       <h2>وجبات اليوم</h2>
@@ -206,7 +211,7 @@ svg.chart{width:100%;height:180px;display:block}
         <div><label>النشاط</label>
           <select id="s-act">
             <option value="1.375">خفيف (3 أيام)</option>
-            <option value="1.55">متوسط (4-5 أيام)</option>
+            <option value="1.55" selected>متوسط (4-5 أيام)</option>
             <option value="1.725">عالي (6 أيام)</option>
           </select></div>
         <div><label>الهدف</label>
@@ -256,14 +261,24 @@ let S;
 try { S = Object.assign(DEF(), JSON.parse(localStorage.getItem(KEY)) || {}); } catch { S = DEF(); }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
 
-// برنامج Upper/Lower أربع أيام — مناسب لمستوى متوسط وهدف نزول دهون مع الحفاظ على العضل
+// برنامج Push/Pull/Legs خمس أيام — تركيز زيادة على الدراع والكتف (يومين إضافيين يشتغلوا عليهم)
 const PROGRAM = {
-  'Upper A': ['Flat DB Press', 'Barbell Row', 'Seated DB Shoulder Press', 'Lat Pulldown', 'DB Curl', 'Triceps Pushdown'],
-  'Lower A': ['Squat', 'Romanian Deadlift', 'Leg Press', 'Leg Curl', 'Calf Raise', 'Plank'],
-  'Upper B': ['Incline DB Press', 'Pull Up', 'Seated Cable Row', 'Lateral Raise', 'Hammer Curl', 'Overhead Triceps Extension'],
-  'Lower B': ['Deadlift', 'Bulgarian Split Squat', 'Leg Extension', 'Leg Curl', 'Calf Raise', 'Cable Crunch']
+  'Push': ['Flat DB Press', 'Incline DB Press', 'Seated DB Shoulder Press', 'Lateral Raise', 'Triceps Pushdown', 'Overhead Triceps Extension'],
+  'Pull': ['Lat Pulldown', 'Barbell Row', 'Seated Cable Row', 'Rear Delt Fly', 'Barbell Curl', 'Hammer Curl'],
+  'Legs': ['Squat', 'Romanian Deadlift', 'Leg Press', 'Leg Curl', 'Calf Raise', 'Cable Crunch'],
+  'Shoulders & Arms': ['Overhead Press', 'Lateral Raise', 'Face Pull', 'EZ Bar Curl', 'Close Grip Bench Press', 'Incline DB Curl', 'Skull Crusher'],
+  'Upper': ['Incline DB Press', 'Pull Up', 'Chest Supported Row', 'Cable Lateral Raise', 'Preacher Curl', 'Dips', 'Cable Curl']
 };
-const PLAN_DAYS = { 6: 'Upper A', 0: 'Lower A', 2: 'Upper B', 3: 'Lower B' }; // سبت، حد، تلات، أربع
+const PLAN_DAYS = { 6: 'Push', 0: 'Pull', 1: 'Legs', 3: 'Shoulders & Arms', 4: 'Upper' }; // سبت، حد، اتنين، أربع، خميس — راحة تلات وجمعة
+
+// نظام أكل رخيص (حوالي 2450 سعرة و175 جم بروتين) — أكل مصري متاح
+const MEAL_PLAN = [
+  { t: 'الفطار', name: '4 بيض + رغيف بلدي + طبق فول صغير', kcal: 700, pro: 42 },
+  { t: 'الغدا', name: '250جم صدور فراخ + كوباية ونص رز + سلطة', kcal: 650, pro: 62 },
+  { t: 'سناك', name: '200جم جبنة قريش + خيار + موزتين', kcal: 410, pro: 26 },
+  { t: 'العشا', name: 'علبة تونة + رغيف بلدي + سلطة', kcal: 500, pro: 35 },
+  { t: 'قبل النوم', name: 'كوباية لبن كبيرة', kcal: 190, pro: 10 }
+];
 
 // ---------- أدوات ----------
 const $ = id => document.getElementById(id);
@@ -319,7 +334,8 @@ function renderHome() {
     `كُل ${t.pro} جم بروتين يومياً عشان تحافظ على العضل وانت بتنشف.`,
     `هدف السعرات ${t.kcal} — نزول 0.5-0.75 كجم في الأسبوع ممتاز.`,
     'زوّد الوزن أو العدات كل أسبوع لو قدرت (Progressive Overload).',
-    '3-4 مجموعات لكل تمرين، 6-12 عدة، ووقّف قبل الفشل بعدة أو اتنين.',
+    '3-4 مجموعات لكل تمرين، 8-12 عدة للدراع والكتف، ووقّف قبل الفشل بعدة أو اتنين.',
+    'الجدول: سبت Push · حد Pull · اتنين Legs · أربع كتف ودراع · خميس Upper · تلات وجمعة راحة.',
     'نام 7-8 ساعات واشرب 3 لتر مية.'
   ].map(x => `<li>${x}</li>`).join('');
 }
@@ -361,7 +377,7 @@ function newDraft(name = '', exs = []) {
 function startTpl(k) { newDraft(k, PROGRAM[k]); go('work'); }
 
 function renderWork() {
-  $('sub').textContent = 'برنامج Upper / Lower — 4 أيام';
+  $('sub').textContent = 'Push / Pull / Legs — 5 أيام · تركيز دراع وكتف';
   if (!S.draft) newDraft();
   const D = S.draft;
   $('w-tpl').innerHTML = Object.keys(PROGRAM).map(k => `<button class="chip ${D.name === k ? 'on' : ''}" onclick="pickTpl('${k}')">${k}</button>`).join('')
@@ -436,6 +452,9 @@ function renderFood() {
   const fm = frequentMeals();
   $('meal-list').innerHTML = fm.map(m => `<option value="${esc(m.name)}">`).join('');
   $('m-quick').innerHTML = fm.slice(0, 8).map((m, i) => `<button class="chip" onclick="quickMeal(${i})">+ ${esc(m.name)}</button>`).join('');
+  const eaten = new Set(S.meals.filter(m => m.date === d).map(m => m.name));
+  $('m-plan').innerHTML = MEAL_PLAN.map((m, i) => `<li><div><b>${m.t}</b><div class="mute">${m.name} · ${m.kcal} سعرة · ${m.pro} جم</div></div>
+    <button class="${eaten.has(m.name) ? 'p' : ''}" style="flex:0 0 auto" onclick="planMeal(${i})">${eaten.has(m.name) ? '✓' : '+'}</button></li>`).join('');
   $('m-list').innerHTML = S.meals.filter(m => m.date === d).map(m =>
     `<li><div><b>${esc(m.name)}</b><div class="mute">${m.kcal} سعرة · ${m.pro} جم بروتين</div></div><button class="g del" onclick="rmMeal('${m.id}')">✕</button></li>`
   ).join('') || '<li class="mute">مفيش وجبات لليوم ده</li>';
@@ -455,6 +474,13 @@ function quickMeal(i) {
   const m = frequentMeals()[i];
   S.meals.push({ id: uid(), date: $('f-date').value || today(), name: m.name, kcal: m.kcal, pro: m.pro });
   save(); toast('تمت الإضافة'); renderFood();
+}
+function planMeal(i) {
+  const m = MEAL_PLAN[i], d = $('f-date').value || today();
+  const had = S.meals.find(x => x.date === d && x.name === m.name);
+  if (had) S.meals = S.meals.filter(x => x !== had);
+  else S.meals.push({ id: uid(), date: d, name: m.name, kcal: m.kcal, pro: m.pro });
+  save(); renderFood();
 }
 function rmMeal(id) { S.meals = S.meals.filter(m => m.id !== id); save(); renderFood(); }
 
