@@ -204,6 +204,7 @@ function makeEx(id, sets, deload, low) {
   return { id, tw: w, tr: g.r, note, up: !deload && g.up, sets: Array.from({ length: n }, () => ({ w, r: g.r, rir: null, ok: false })) };
 }
 function buildDraft(key) {
+  expanded.clear();
   const P = PROGRAM[key], deload = mesoWeek() === 5, rd = readiness(), low = !!(rd && rd.low);
   S.draft = {
     v2: 1, key: P ? key : '', name: P ? P.name : 'تمرين حر', date: today(), start: Date.now(), deload, low,
@@ -258,7 +259,10 @@ function go(v, fromPop) {
   rerender();
   scrollTo(0, 0);
 }
-function rerender() { ({ home: renderHome, work: renderWork, food: renderFood, prog: renderProg, set: renderSet })[view](); }
+function rerender() {
+  ({ home: renderHome, work: renderWork, food: renderFood, prog: renderProg, set: renderSet })[view]();
+  if (view === 'work' && draftActive()) keepAwake(true); else if (view !== 'work') keepAwake(false);
+}
 
 // ================= اليوم =================
 // ===== البار: بيتحمّل بأطباق على قد التقدّم (ألوان الأطباق الأولمبية) =====
@@ -397,6 +401,7 @@ function saveDaily() {
 // ================= التمرين =================
 function startTpl(k) { if (!draftActive() || confirm('فيه تمرين شغال. تبدأ واحد جديد؟')) buildDraft(k); go('work'); }
 function pickTpl(k) {
+  expanded.clear();
   if (draftActive() && !confirm('هتمسح التمرين الحالي؟')) return;
   buildDraft(k); renderWork();
 }
@@ -406,33 +411,42 @@ function renderWork() {
   $('sub').textContent = 'برنامج 5 تمارين بترتيب مرن';
   $('w-tpl').innerHTML = Object.entries(PROGRAM).map(([k, p]) => `<button class="chip ${D.key === k ? 'on' : ''}" onclick="pickTpl('${k}')">${p.name}</button>`).join('')
     + `<button class="chip ${D.key === '' ? 'on' : ''}" onclick="pickTpl('')">حر</button>`;
-  $('w-banner').innerHTML = D.deload ? '<div class="banner">🔄 أسبوع خفيف: الأوزان أقل 10% والمجموعات أقل عشان جسمك يستشفى.</div>'
+  $('w-banner').innerHTML = D.editId ? '<div class="banner warn">✏️ بتعدّل تمرين قديم. عدّل الأرقام ودوس "إنهاء وحفظ" تحت.</div>' : D.deload ? '<div class="banner">🔄 أسبوع خفيف: الأوزان أقل 10% والمجموعات أقل عشان جسمك يستشفى.</div>'
     : D.low ? '<div class="banner warn">😴 جاهزيتك قليلة النهارده، فشِلنا مجموعة من كل تمرين.</div>' : '';
-  $('w-title').textContent = D.name;
+  $('w-title').textContent = D.name + (D.short ? ` (مختصر ${D.short} دقيقة)` : '');
   $('w-date').value = D.date;
   updateMeta();
 
+  const cur = currentIdx();
   $('w-ex').innerHTML = D.ex.length ? D.ex.map((e, i) => {
-    const X = exInfo(e.id);
-    return `<div class="ex">
+    const X = exInfo(e.id), note = exNote(e.id);
+    // تمرين خلص: سطر واحد مقفول (تدوس عليه يفتح)
+    if (exDone(e) && !expanded.has(i)) return `<div class="ex done-ex" onclick="expanded.add(${i});renderWork()" role="button" aria-label="افتح ${esc(X.ar)}">
+      <div class="row"><span class="fit" style="color:var(--green);font-size:20px">✓</span><div><b style="font-family:var(--display);font-weight:600">${esc(X.ar)}</b>
+      <div class="mute ltr" style="text-align:right">${doneSummary(e)}</div></div><span class="fit mute">افتح</span></div></div>`;
+    return `<div class="ex ${i === cur ? 'cur' : ''}">
+      ${i === cur ? '<div class="cur-tag">دلوقتي</div>' : ''}
       <div class="ex-h"><div><b>${esc(X.ar)}</b>${X.n !== X.ar ? `<small class="ltr" style="display:block">${esc(X.n)}</small>` : ''}<small>${X.eq ? EQ[X.eq] + '، ' : ''}${X.m === 'cardio' ? `${X.rr[0]} لـ ${X.rr[1]} دقيقة` : `${X.rr[0]} لـ ${X.rr[1]} عدّة، وراحة ${X.rest} ثانية`}</small></div>
         <button class="g" onclick="exSheet(${i})" aria-label="خيارات التمرين">⋯</button></div>
+      ${note ? `<div class="mute" style="font-size:13px;margin:6px 0 0">📝 ${esc(note)}</div>` : ''}
       ${howTo(e.id, i)}
       ${X.m === 'cardio' ? `<div class="target"><span class="tag blue">الهدف: ${e.tr} دقيقة، ${X.wl.split(' ')[0]} ${e.tw}</span><span class="mute">${e.note}</span></div>
       <div class="set head"><span></span><span>السابق</span><span>${X.wl}</span><span>دقايق</span><span>سعرات</span><span></span></div>`
-      : `<div class="target"><span class="tag ${e.up ? 'acc' : 'blue'}">الهدف: <b class="ltr">${e.tw !== '' ? e.tw + ' kg × ' : ''}${e.tr}</b></span><span class="mute">${e.note}</span></div>${warmupLine(e, i)}
+      : `<div class="target"><span class="tag ${e.up ? 'acc' : 'blue'}">الهدف: <b class="ltr">${e.tw !== '' ? e.tw + ' kg × ' : ''}${e.tr}</b></span><span class="mute">${e.note}</span></div>${warmupLine(e, i)}${plateLine(e)}
       <div class="set head"><span></span><span>السابق</span><span>كجم</span><span>عدّات</span><span>RIR</span><span></span></div>`}
       ${e.sets.map((s, j) => `<div class="set ${s.ok ? 'done' : ''}">
         <span class="n">${j + 1}</span>
         <span class="prev">${prevSet(e.id, j)}</span>
-        <input type="number" step="0.5" inputmode="decimal" value="${s.w}" onchange="setVal(${i},${j},'w',this.value)">
-        <input type="number" inputmode="numeric" value="${s.r}" onchange="setVal(${i},${j},'r',this.value)">
-        ${X.m === 'cardio' ? `<span class="rir kc">${cardioKcal(e.id, s.w, s.r)}</span>` : `<button class="rir" onclick="cycleRir(${i},${j})">${s.rir == null ? '—' : s.rir === 3 ? '3+' : s.rir}</button>`}
+        <input type="number" step="0.5" inputmode="decimal" value="${s.w}" onchange="setVal(${i},${j},'w',this.value)" aria-label="الوزن">
+        <input type="number" inputmode="numeric" value="${s.r}" onchange="setVal(${i},${j},'r',this.value)" aria-label="العدّات">
+        ${X.m === 'cardio' ? `<span class="rir kc">${cardioKcal(e.id, s.w, s.r)}</span>` : `<button class="rir" onclick="cycleRir(${i},${j})" aria-label="RIR">${s.rir == null ? '—' : s.rir === 3 ? '3+' : s.rir}</button>`}
         <button class="tick" onclick="tick(${i},${j})" aria-label="المجموعة ${j + 1} خلصت">✓</button>
       </div>`).join('')}
-      <div class="row"><button class="g sm fit" onclick="addSet(${i})">+ مجموعة</button><button class="g sm fit" onclick="rmSet(${i})">− مجموعة</button></div>
+      <div class="row"><button class="g sm fit" onclick="addSet(${i})">+ مجموعة</button><button class="g sm fit" onclick="rmSet(${i})">− مجموعة</button>
+        ${exDone(e) ? `<button class="g sm fit" onclick="expanded.delete(${i});renderWork()">اقفل</button>` : ''}</div>
     </div>`;
-  }).join('') : '<p class="mute" style="margin:0">اختار يوم من فوق أو ضيف تمارين بنفسك.</p>';
+  }).join('') + (programDiff() ? `<button class="w" style="margin-top:8px" onclick="saveToProgram()">💾 احفظ ترتيب التمارين ده في برنامج ${esc(D.name)}</button>` : '')
+    : '<p class="mute" style="margin:0">اختار يوم من فوق أو ضيف تمارين بنفسك.</p>';
 
   $('w-hist').innerHTML = S.workouts.slice(-20).reverse().map(w => {
     const sets = w.ex.reduce((a, e) => a + e.sets.length, 0);
@@ -461,7 +475,9 @@ function updateMeta() {
   const all = D.ex.reduce((a, e) => a + e.sets.length, 0), ok = D.ex.reduce((a, e) => a + e.sets.filter(s => s.ok).length, 0);
   const mins = draftActive() ? Math.round((Date.now() - D.start) / 6e4) : 0;
   const P = PROGRAM[D.key];
-  $('w-meta').textContent = `${P ? P.ar.replace(/ · /g, '، ') + '. ' : ''}${ok} من ${all} مجموعة${mins ? `، ${mins} دقيقة` : ''}`;
+  const nx = D.ex[currentIdx()];
+  $('w-meta').innerHTML = `${ok} من ${all} مجموعة${mins ? `، ${mins} دقيقة` : ''}${nx ? `، الجاي: <b>${esc(exInfo(nx.id).ar)}</b>` : all ? '، <b class="green">خلصت كل التمارين 🎉</b>' : ''}
+    ${!D.editId && D.ex.some(e => !exDone(e)) ? ` <button class="g sm" style="padding:0 6px;min-height:28px" onclick="shortenSheet()">⏱ وقتي ضيق</button>` : ''}`;
   const slots = 8;
   $('w-bar').innerHTML = barbell('work', all ? Math.round(ok / all * slots) : 0, slots);
 }
@@ -474,12 +490,16 @@ function tick(i, j) {
   if (!s.ok && !(+s.r > 0)) return toast('اكتب العدّات الأول');
   if (!s.ok && !draftActive()) S.draft.start = Date.now();
   s.ok = !s.ok;
+  let msg = null;
   if (s.ok) {
-    // الوزن والعدّات بيتنقلوا للمجموعة الجاية لو لسه متعملتش
-    const nx = e.sets[j + 1]; if (nx && !nx.ok) { nx.w = s.w; }
+    // الوزن بيتنقل للمجموعة الجاية، ولو المجموعة كانت سهلة أو صعبة زيادة بيتظبط
+    msg = autoregulate(e, j);
     if (!isCardio(e.id)) startRest(exInfo(e.id).rest); vib(15);
+    keepAwake(true);
   }
   save(); renderWork();
+  if (msg) toast(msg);
+  if (s.ok && exDone(e)) scrollToCurrent();
 }
 function addSet(i) { const ss = S.draft.ex[i].sets, l = ss.at(-1) || { w: '', r: '' }; ss.push({ w: l.w, r: l.r, rir: null, ok: false }); save(); renderWork(); }
 function rmSet(i) { if (S.draft.ex[i].sets.length > 1) S.draft.ex[i].sets.pop(); save(); renderWork(); }
@@ -493,9 +513,13 @@ function finishWorkout() {
   })).filter(e => e.sets.length);
   if (!ex.length) return toast('سجّل مجموعة واحدة على الأقل');
   const prs = ex.filter(e => { const b = bestE1rm(e.id, D.date); return b > 0 && Math.max(...e.sets.map(s => e1rm(s.w, s.r))) > b + 0.01; });
-  const w = { id: uid(), date: D.date, key: D.key, name: D.name, deload: D.deload || undefined, prs: prs.length || undefined,
-    dur: anyOk ? Math.max(1, Math.round((Date.now() - D.start) / 6e4)) : undefined, ex };
+  const old = D.editId && S.workouts.find(x => x.id === D.editId);
+  const w = { id: old ? old.id : uid(), date: D.date, key: D.key, name: D.name, deload: D.deload || undefined, prs: prs.length || undefined,
+    dur: old ? old.dur : anyOk ? Math.max(1, Math.round((Date.now() - D.start) / 6e4)) : undefined, ex };
+  if (old) S.workouts = S.workouts.filter(x => x !== old);
   S.workouts.push(w);
+  keepAwake(false); expanded.clear();
+  if (old) { S.workouts.sort((a, b) => a.date.localeCompare(b.date)); S.draft = null; save(); toast('اتعدّل التمرين ✓'); go('work'); return; }
   S.workouts.sort((a, b) => a.date.localeCompare(b.date));
   S.draft = null; restStop(); save(); vib([30, 50, 30]);
   const lift = ex.filter(e => !isCardio(e.id)), cardio = ex.filter(e => isCardio(e.id));
@@ -503,8 +527,9 @@ function finishWorkout() {
   const cMin = cardio.reduce((a, e) => a + e.sets.reduce((b, s) => b + s.r, 0), 0), cKcal = cardio.reduce((a, e) => a + e.sets.reduce((b, s) => b + cardioKcal(e.id, s.w, s.r), 0), 0);
   openSheet(`<div class="grip"></div><h3>عاش! 💪 ${esc(w.name)}</h3><p class="mute" style="margin:0 0 12px">${fmtDay(w.date)}</p>
     <div class="grid3"><div class="stat"><b>${sets}</b><span>مجموعة</span></div><div class="stat"><b>${Math.round(vol)}</b><span>كجم حجم</span></div><div class="stat"><b>${w.dur || '—'}</b><span>دقيقة</span></div></div>
+    ${sessionCompare(w)}
     ${cMin ? `<div class="banner" style="margin:12px 0 0">🏃 كارديو: ${cMin} دقيقة ≈ ${cKcal} سعرة محروقة</div>` : ''}
-    ${prs.length ? `<div class="card" style="margin:14px 0 0"><h2>🏆 أرقام قياسية جديدة</h2>${prs.map(e => `<div>${esc(exInfo(e.id).ar)}</div>`).join('')}</div>` : ''}
+    ${prs.length ? `<div class="card" style="margin:14px 0 0"><h2>🏆 أرقام قياسية جديدة</h2>${prs.map(e => { const t = e.sets.reduce((a, s) => e1rm(s.w, s.r) > e1rm(a.w, a.r) ? s : a, e.sets[0]); return `<div class="row" style="margin:4px 0"><span>${esc(exInfo(e.id).ar)}</span><b class="green ltr fit">${t.w} kg × ${t.r}</b></div>`; }).join('')}</div>` : ''}
     <button class="p w" style="margin-top:14px" onclick="closeSheet();go('home')">تمام</button>`);
 }
 
@@ -514,6 +539,8 @@ function exSheet(i) {
   const hist = S.workouts.filter(w => w.ex.some(x => x.id === e.id)).slice(-4).reverse();
   const alts = Object.entries(EX).filter(([id, x]) => x.m && x.m === X.m && id !== e.id && !S.draft.ex.some(y => y.id === id));
   openSheet(`<div class="grip"></div><h3>${esc(X.ar)}</h3><p class="mute" style="margin:0 0 10px">${esc(X.n)}${X.m ? ` · ${(MUSCLES[X.m] || 'كارديو')}` : ''}${(X.sec || []).length ? ' + ' + X.sec.map(m => MUSCLES[m]).join('، ') : ''}</p>
+    <label for="ex-note" style="margin-top:4px">📝 ملاحظة ثابتة للتمرين ده (رقم الكرسي، المسكة، الجهاز…)</label>
+    <textarea id="ex-note" rows="2" style="width:100%;background:var(--surface-2);color:var(--ink);border:1px solid transparent;border-radius:var(--r-sm);padding:10px;font:inherit;margin-bottom:10px" onchange="saveExNote('${e.id}', this.value);renderWork()" placeholder="مثلًا: الكرسي على رقم 4">${esc(exNote(e.id))}</textarea>
     ${howTo(e.id, i).replace('<details class="how"', '<details class="how" open')}
     <h2 class="mute" style="font-size:13px;margin:12px 0 4px">آخر مرات</h2>
     <ul class="list">${hist.map(w => { const x = w.ex.find(y => y.id === e.id); return `<li><span class="mute">${fmtShort(w.date)}</span><span class="ltr">${isCardio(e.id) ? x.sets.map(s => `${s.r} د`).join('  ') : x.sets.map(s => `${s.w}×${s.r}`).join('  ')}</span></li>`; }).join('') || '<li class="mute">لسه</li>'}</ul>
@@ -550,7 +577,7 @@ function histSheet(id) {
   const w = S.workouts.find(x => x.id === id);
   openSheet(`<div class="grip"></div><h3>${esc(w.name)}</h3><p class="mute" style="margin:0 0 10px">${fmtDay(w.date)}${w.dur ? ` · ${w.dur} دقيقة` : ''}</p>
     <ul class="list">${w.ex.map(e => `<li><span>${esc(exInfo(e.id).ar)}</span><span class="ltr mute">${isCardio(e.id) ? e.sets.map(s => `${s.r} د · ${cardioKcal(e.id, s.w, s.r)} سعرة`).join('  ') : e.sets.map(s => `${s.w}×${s.r}`).join('  ')}</span></li>`).join('')}</ul>
-    <button class="g w del" style="margin-top:12px" onclick="rmWorkout('${id}')">مسح التمرين ده</button>`);
+    <div class="row" style="margin-top:12px"><button onclick="editWorkout('${id}')">✏️ عدّل</button><button class="g del" onclick="rmWorkout('${id}')">امسح</button></div>`);
 }
 function rmWorkout(id) {
   if (!confirm('امسح التمرين ده؟')) return;
